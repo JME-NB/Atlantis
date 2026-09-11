@@ -41,7 +41,7 @@ $logoUrl   = $settings['logo_url'] ?? '';
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23<?php echo ltrim($primary, '#'); ?>'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='%23<?php echo ltrim($secondary, '#'); ?>' font-family='Arial' font-weight='bold'>A</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=7">
+    <link rel="stylesheet" href="assets/css/style.css?v=8">
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($primary, ENT_QUOTES, 'UTF-8'); ?>;
@@ -85,10 +85,60 @@ $logoUrl   = $settings['logo_url'] ?? '';
 
     <!-- HERO -->
     <section id="accueil" class="hero">
+        <svg class="hero-art" viewBox="0 0 1440 760" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+            <defs>
+                <linearGradient id="heroArtGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#0a1628"/>
+                    <stop offset="55%" stop-color="#0c2740"/>
+                    <stop offset="100%" stop-color="#07566e"/>
+                </linearGradient>
+                <radialGradient id="heroArtGlow" cx="0.78" cy="0.25" r="0.65">
+                    <stop offset="0%" stop-color="#00b4d8" stop-opacity="0.35"/>
+                    <stop offset="100%" stop-color="#00b4d8" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="heroArtGlow2" cx="0.12" cy="0.85" r="0.55">
+                    <stop offset="0%" stop-color="#123a5c" stop-opacity="0.55"/>
+                    <stop offset="100%" stop-color="#123a5c" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+            <rect width="1440" height="760" fill="url(#heroArtGrad)"/>
+            <rect width="1440" height="760" fill="url(#heroArtGlow)"/>
+            <rect width="1440" height="760" fill="url(#heroArtGlow2)"/>
+            <circle cx="1180" cy="170" r="330" fill="#00b4d8" opacity="0.06"/>
+            <circle cx="160" cy="640" r="320" fill="#ffffff" opacity="0.03"/>
+            <circle cx="1340" cy="600" r="90" fill="#ffffff" opacity="0.05"/>
+            <g fill="#ffffff" opacity="0.10">
+                <rect x="330" y="300" width="170" height="58" rx="29"/>
+                <path d="M366 358 l20 30 l36 -30 z"/>
+            </g>
+            <g fill="#00b4d8" opacity="0.16">
+                <rect x="520" y="180" width="200" height="62" rx="31"/>
+                <path d="M560 242 l22 30 l42 -30 z"/>
+            </g>
+            <g fill="none" stroke="#00b4d8" stroke-width="3" opacity="0.25" stroke-linecap="round">
+                <path d="M640 360 q16 -13 32 0 q16 13 32 0"/>
+                <path d="M640 380 q16 -13 32 0 q16 13 32 0"/>
+                <path d="M640 400 q16 -13 32 0 q16 13 32 0"/>
+            </g>
+            <g fill="#ffffff" opacity="0.13">
+                <circle cx="1120" cy="470" r="28"/>
+                <rect x="1080" y="508" width="80" height="150" rx="36"/>
+                <circle cx="1232" cy="470" r="28"/>
+                <rect x="1192" y="508" width="80" height="150" rx="36"/>
+            </g>
+            <g fill="none" stroke="#00b4d8" stroke-width="4" opacity="0.55" stroke-linecap="round">
+                <path d="M1122 444 a28 28 0 0 1 46 0"/>
+                <path d="M1145 444 v18"/>
+            </g>
+            <g fill="none" stroke="#00b4d8" stroke-width="4" opacity="0.4" stroke-linecap="round">
+                <path d="M1234 444 a28 28 0 0 1 46 0"/>
+                <path d="M1257 444 v18"/>
+            </g>
+        </svg>
         <?php if (!empty($banniere)): ?>
         <div class="hero-image-bg" data-src="<?php echo htmlspecialchars($banniere, ENT_QUOTES, 'UTF-8'); ?>"></div>
-        <div class="hero-image-overlay"></div>
         <?php endif; ?>
+        <div class="hero-image-overlay"></div>
         <div class="container hero-content reveal">
             <span class="hero-badge">Centre d'appel &middot; Yaounde &middot; Cameroun</span>
             <h1>ATLANTIS</h1>
@@ -177,6 +227,28 @@ $logoUrl   = $settings['logo_url'] ?? '';
 
     <!-- POURQUOI ATLANTIS -->
     <section id="pourquoi" class="section section-dark">
+        <div class="why-decor" aria-hidden="true">
+            <?php if (!empty($sections['pourquoi']['image_url'])): ?>
+                <div class="why-decor-bg" style="background-image:url('<?php echo htmlspecialchars($sections['pourquoi']['image_url'], ENT_QUOTES, 'UTF-8'); ?>');"></div>
+            <?php else: ?>
+                <svg viewBox="0 0 480 480" shape-rendering="geometricPrecision" focusable="false">
+                    <circle cx="240" cy="240" r="208" fill="none" stroke="#00b4d8" stroke-opacity="0.4" stroke-width="2"/>
+                    <circle cx="240" cy="240" r="150" fill="#00b4d8" opacity="0.08"/>
+                    <g fill="none" stroke="#00b4d8" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round">
+                        <polyline points="118 300 218 232 300 262 382 158"/>
+                    </g>
+                    <circle cx="118" cy="300" r="6" fill="#00b4d8" fill-opacity="0.6"/>
+                    <circle cx="218" cy="232" r="6" fill="#00b4d8" fill-opacity="0.6"/>
+                    <circle cx="300" cy="262" r="6" fill="#00b4d8" fill-opacity="0.6"/>
+                    <circle cx="382" cy="158" r="6" fill="#00b4d8" fill-opacity="0.6"/>
+                    <g fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="10" stroke-linecap="round">
+                        <path d="M210 250 l14 -30 34 -4"/>
+                        <path d="M258 250 l-14 -30 -34 -4"/>
+                    </g>
+                    <text x="240" y="235" text-anchor="middle" font-family="Arial" font-size="34" font-weight="700" fill="#00b4d8" fill-opacity="0.5">A</text>
+                </svg>
+            <?php endif; ?>
+        </div>
         <div class="container">
             <div class="section-head reveal">
                 <span class="section-tag tag-light">Pourquoi ATLANTIS</span>
@@ -396,6 +468,6 @@ $logoUrl   = $settings['logo_url'] ?? '';
 <script>
 const BASE_URL = '<?php echo BASE_URL; ?>';
 </script>
-<script src="assets/js/script.js?v=7"></script>
+<script src="assets/js/script.js?v=8"></script>
 </body>
 </html>
