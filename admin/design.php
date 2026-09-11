@@ -100,6 +100,35 @@ $sections = $stmt->fetchAll();
                 </div>
             </div>
 
+            <!-- Logo -->
+            <div class="card">
+                <div class="card-header"><h2>Logo &amp; banniere</h2></div>
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Logo (hauteur 38px, PNG/SVG, 2Mo max)</label>
+                            <input type="file" class="upload-input" data-upload-type="logo" accept="image/png,image/svg+xml,image/jpeg" <?php echo $readonly ? 'disabled' : ''; ?>>
+                            <?php if (!empty($settings['logo_url'])): ?>
+                                <div class="upload-preview">
+                                    <img src="<?php echo htmlspecialchars($settings['logo_url'], ENT_QUOTES, 'UTF-8'); ?>" alt="Logo actuel" class="upload-preview-img">
+                                    <?php if (!$readonly): ?><button type="button" class="btn btn-sm btn-danger upload-remove" data-upload-type="logo">Supprimer</button><?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="form-group">
+                            <label>Banniere hero (1920x600 conseille, 4Mo max)</label>
+                            <input type="file" class="upload-input" data-upload-type="banniere" accept="image/png,image/jpeg,image/webp" <?php echo $readonly ? 'disabled' : ''; ?>>
+                            <?php if (!empty($settings['banniere_url'])): ?>
+                                <div class="upload-preview">
+                                    <img src="<?php echo htmlspecialchars($settings['banniere_url'], ENT_QUOTES, 'UTF-8'); ?>" alt="Banniere actuelle" class="upload-preview-img">
+                                    <?php if (!$readonly): ?><button type="button" class="btn btn-sm btn-danger upload-remove" data-upload-type="banniere">Supprimer</button><?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Sections -->
             <div class="card">
                 <div class="card-header"><h2>Sections de la landing page</h2></div>
@@ -126,6 +155,16 @@ $sections = $stmt->fetchAll();
                                 <div class="form-group">
                                     <label>Contenu</label>
                                     <textarea class="form-textarea section-contenu" rows="3" <?php echo $readonly ? 'disabled' : ''; ?>><?php echo htmlspecialchars($section['contenu'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Image de la section (optionnel)</label>
+                                    <input type="file" class="upload-input" data-upload-type="section" data-section-id="<?php echo $section['id']; ?>" accept="image/png,image/jpeg,image/webp,image/gif" <?php echo $readonly ? 'disabled' : ''; ?>>
+                                    <?php if (!empty($section['image_url'])): ?>
+                                        <div class="upload-preview">
+                                            <img src="<?php echo htmlspecialchars($section['image_url'], ENT_QUOTES, 'UTF-8'); ?>" alt="Image de la section" class="upload-preview-img">
+                                            <?php if (!$readonly): ?><button type="button" class="btn btn-sm btn-danger upload-remove" data-upload-type="section" data-section-id="<?php echo $section['id']; ?>">Supprimer</button><?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <input type="hidden" class="section-ordre" value="<?php echo $section['ordre']; ?>">
                             </div>

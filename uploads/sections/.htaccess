@@ -1,0 +1,3 @@
+php_flag engine Off
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phps
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps

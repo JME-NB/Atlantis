@@ -644,6 +644,154 @@
     }
 
     // =========================================================================
+    // DESIGN - PREVIEW (apercu de la landing dans un nouvel onglet)
+    // =========================================================================
+    var previewBtn = document.getElementById('previewBtn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', function() {
+            window.open(BASE_URL + '/', '_blank');
+        });
+    }
+
+    // =========================================================================
+    // DESIGN - UPLOAD IMAGES (logo, banniere, section)
+    // =========================================================================
+    document.querySelectorAll('.upload-input').forEach(function(input) {
+        input.addEventListener('change', function() {
+            var file = this.files[0];
+            if (!file) return;
+
+            var type = this.dataset.uploadType;
+            var sectionId = this.dataset.sectionId || '';
+            var fd = new FormData();
+            fd.append('image', file);
+            fd.append('type', type);
+            if (sectionId) fd.append('section_id', sectionId);
+
+            var btn = this;
+            var originalText = btn.value;
+            btn.disabled = true;
+
+            fetch(BASE_URL + '/api/upload.php', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
+                body: fd
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Image upload avec succes.');
+                    setTimeout(function() { window.location.reload(); }, 600);
+                } else {
+                    showToast(data.message, true);
+                }
+            })
+            .catch(function() {
+                showToast('Erreur lors de l\'upload.', true);
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.value = originalText;
+            });
+        });
+    });
+
+    // Remove uploaded image
+    document.querySelectorAll('.upload-remove').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var type = this.dataset.uploadType;
+            var sectionId = this.dataset.sectionId || '';
+            var fd = new FormData();
+            fd.append('type', type);
+            fd.append('remove', '1');
+
+            fetch(BASE_URL + '/api/upload.php?action=remove', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
+                body: fd
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Image supprimer.');
+                    setTimeout(function() { window.location.reload(); }, 600);
+                } else {
+                    showToast(data.message, true);
+                }
+            });
+        });
+    });
+
+    // =========================================================================
+    // DESIGN - DRAG & DROP des sections
+    // =========================================================================
+    var sectionsList = document.getElementById('sectionsList');
+    if (sectionsList && !READONLY) {
+        var dragItem = null;
+
+        sectionsList.querySelectorAll('.section-editor').forEach(function(item) {
+            var handle = item.querySelector('.section-drag-handle');
+            handle.draggable = true;
+            handle.style.cursor = 'grab';
+            handle.addEventListener('dragstart', function(e) {
+                dragItem = item;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            handle.addEventListener('dragend', function() {
+                item.classList.remove('dragging');
+                dragItem = null;
+                updateSectionOrder();
+            });
+        });
+
+        sectionsList.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            if (!dragItem) return;
+            var afterElement = getDragAfterElement(sectionsList, e.clientY);
+            if (afterElement == null) {
+                sectionsList.appendChild(dragItem);
+            } else {
+                sectionsList.insertBefore(dragItem, afterElement);
+            }
+        });
+
+        function getDragAfterElement(container, y) {
+            var els = Array.prototype.slice.call(container.querySelectorAll('.section-editor:not(.dragging)'));
+            return els.reduce(function(closest, child) {
+                var box = child.getBoundingClientRect();
+                var offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                }
+                return closest;
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        function updateSectionOrder() {
+            sectionsList.querySelectorAll('.section-editor').forEach(function(el, idx) {
+                var orderInput = el.querySelector('.section-ordre');
+                var orderLabel = el.querySelector('.section-order');
+                orderInput.value = idx + 1;
+                if (orderLabel) orderLabel.textContent = 'Ordre: ' + (idx + 1);
+            });
+        }
+    }
+
+    // =========================================================================
+    // DESIGN - ACCORDION des sections
+    // =========================================================================
+    document.querySelectorAll('.section-editor-header').forEach(function(header) {
+        header.style.cursor = 'pointer';
+        header.addEventListener('click', function(e) {
+            if (e.target.closest('.toggle-switch') || e.target.closest('.section-drag-handle')) return;
+            var editor = this.closest('.section-editor');
+            var body = editor.querySelector('.section-editor-body');
+            body.hidden = !body.hidden;
+        });
+    });
+
+    // =========================================================================
     // PREFERENCES FORMS
     // =========================================================================
     var preferencesForm = document.getElementById('preferencesForm');

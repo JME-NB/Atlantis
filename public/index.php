@@ -28,6 +28,8 @@ $secondary = $settings['couleur_secondaire'] ?? '#00b4d8';
 $fond      = $settings['couleur_fond'] ?? '#f8fafc';
 $policeT   = $settings['police_titre'] ?? 'Inter';
 $policeC   = $settings['police_corps'] ?? 'Inter';
+$banniere  = $settings['banniere_url'] ?? '';
+$logoUrl   = $settings['logo_url'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -39,7 +41,7 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23<?php echo ltrim($primary, '#'); ?>'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='%23<?php echo ltrim($secondary, '#'); ?>' font-family='Arial' font-weight='bold'>A</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=7">
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($primary, ENT_QUOTES, 'UTF-8'); ?>;
@@ -55,7 +57,12 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
 <header id="navbar" class="navbar">
     <div class="container nav-container">
         <a href="#accueil" class="logo" aria-label="ATLANTIS - Accueil">
-            <span class="logo-mark">A</span><span class="logo-text">ATLANTIS</span>
+            <?php if (!empty($logoUrl)): ?>
+                <img src="<?php echo htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8'); ?>" alt="ATLANTIS" style="height:38px;width:38px;object-fit:contain;border-radius:10px;">
+            <?php else: ?>
+                <span class="logo-mark">A</span>
+            <?php endif; ?>
+            <span class="logo-text">ATLANTIS</span>
         </a>
         <nav class="nav-links" id="navLinks" aria-label="Navigation principale">
             <a href="#accueil">Accueil</a>
@@ -64,6 +71,10 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
             <a href="#pourquoi">Pourquoi ATLANTIS</a>
             <a href="#contact" class="nav-cta">Contact</a>
         </nav>
+        <button class="theme-toggle" id="themeToggle" aria-label="Basculer le mode jour/nuit">
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
         <button class="hamburger" id="hamburger" aria-label="Ouvrir le menu" aria-expanded="false">
             <span class="bar"></span><span class="bar"></span><span class="bar"></span>
         </button>
@@ -74,6 +85,10 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
 
     <!-- HERO -->
     <section id="accueil" class="hero">
+        <?php if (!empty($banniere)): ?>
+        <div class="hero-image-bg" data-src="<?php echo htmlspecialchars($banniere, ENT_QUOTES, 'UTF-8'); ?>"></div>
+        <div class="hero-image-overlay"></div>
+        <?php endif; ?>
         <div class="container hero-content reveal">
             <span class="hero-badge">Centre d'appel &middot; Yaounde &middot; Cameroun</span>
             <h1>ATLANTIS</h1>
@@ -125,27 +140,37 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
                 <h2 class="section-title"><?php echo htmlspecialchars($sections['services']['titre'] ?? 'Des solutions adaptees a vos objectifs', ENT_QUOTES, 'UTF-8'); ?></h2>
                 <p class="section-text"><?php echo htmlspecialchars($sections['services']['contenu'] ?? 'De la televente au support client, nous couvrons l\'ensemble de vos besoins en relation client.', ENT_QUOTES, 'UTF-8'); ?></p>
             </div>
-            <div class="services-grid">
-                <article class="service-card reveal">
-                    <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></div>
-                    <h3>Televente</h3>
-                    <p>Nos agents qualifies vendent vos produits et services avec professionalisme et empathie.</p>
-                </article>
-                <article class="service-card reveal">
-                    <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                    <h3>Prospection</h3>
-                    <p>Identification et contact proactif de prospects qualifies pour developper votre portefeuille.</p>
-                </article>
-                <article class="service-card reveal">
-                    <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-                    <h3>Service apres-vente</h3>
-                    <p>Support technique et gestion des reclamations pour maintenir la satisfaction client.</p>
-                </article>
-                <article class="service-card reveal">
-                    <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                    <h3>Relation client</h3>
-                    <p>Prise en charge complete de vos clients pour fideliser et ameliorer leur experience.</p>
-                </article>
+            <div class="services-slider">
+                <div class="services-grid" id="servicesGrid">
+                    <article class="service-card reveal">
+                        <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></div>
+                        <h3>Televente</h3>
+                        <p>Nos agents qualifies vendent vos produits et services avec professionalisme et empathie.</p>
+                    </article>
+                    <article class="service-card reveal">
+                        <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                        <h3>Prospection</h3>
+                        <p>Identification et contact proactif de prospects qualifies pour developper votre portefeuille.</p>
+                    </article>
+                    <article class="service-card reveal">
+                        <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                        <h3>Service apres-vente</h3>
+                        <p>Support technique et gestion des reclamations pour maintenir la satisfaction client.</p>
+                    </article>
+                    <article class="service-card reveal">
+                        <div class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                        <h3>Relation client</h3>
+                        <p>Prise en charge complete de vos clients pour fideliser et ameliorer leur experience.</p>
+                    </article>
+                </div>
+                <div class="slider-nav">
+                    <button type="button" class="slider-btn" id="servicesPrev" aria-label="Services precedents">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="slider-btn" id="servicesNext" aria-label="Services suivants">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+                    </button>
+                </div>
             </div>
         </div>
     </section>
@@ -178,6 +203,93 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
                     <h3>Engagement</h3>
                     <p>Nous nous impliquons dans vos projets comme si c'etait les notres.</p>
                 </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROCESSUS -->
+    <section id="processus" class="section">
+        <div class="container">
+            <div class="section-head reveal">
+                <span class="section-tag">Processus</span>
+                <h2 class="section-title"><?php echo htmlspecialchars($sections['processus']['titre'] ?? 'Un deploiement maitrise en 4 etapes', ENT_QUOTES, 'UTF-8'); ?></h2>
+                <p class="section-text"><?php echo htmlspecialchars($sections['processus']['contenu'] ?? 'De l\'analyse initiale au suivi continu, chaque etape est concue pour maximiser vos resultats.', ENT_QUOTES, 'UTF-8'); ?></p>
+            </div>
+            <div class="process-grid">
+                <div class="process-line"></div>
+                <article class="process-step reveal">
+                    <span class="process-number">01</span>
+                    <h3>Analyse</h3>
+                    <p>Nous etudions vos besoins, votre marche et vos objectifs pour definir une strategie sur mesure.</p>
+                </article>
+                <article class="process-step reveal">
+                    <span class="process-number">02</span>
+                    <h3>Mise en place</h3>
+                    <p>Recrutement, formation et equipement de votre dediequipe selon vos specifications.</p>
+                </article>
+                <article class="process-step reveal">
+                    <span class="process-number">03</span>
+                    <h3>Lancement</h3>
+                    <p>Deploiement progressif avec des tests pilotes avant le lancement a grande echelle.</p>
+                </article>
+                <article class="process-step reveal">
+                    <span class="process-number">04</span>
+                    <h3>Suivi</h3>
+                    <p>Reporting regular, optimisation continue et points d\'etat pour garantir la performance.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTEURS -->
+    <section id="secteurs" class="section section-alt">
+        <div class="container">
+            <div class="section-head reveal">
+                <span class="section-tag">Secteurs</span>
+                <h2 class="section-title"><?php echo htmlspecialchars($sections['secteurs']['titre'] ?? 'Une expertise qui s\'adapte a votre activite', ENT_QUOTES, 'UTF-8'); ?></h2>
+                <p class="section-text"><?php echo htmlspecialchars($sections['secteurs']['contenu'] ?? 'Notre experience couvre une variete de secteurs d\'activite, chacun avec ses specificites et exigences.', ENT_QUOTES, 'UTF-8'); ?></p>
+            </div>
+            <div class="secteurs-slider">
+                <div class="secteurs-grid" id="secteursGrid">
+                    <article class="secteur-card reveal">
+                        <div class="secteur-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 1l4 4m14-4l-4 4"/><circle cx="12" cy="12" r="3"/><path d="M5 5l2 2m10-2l-2 2M5 19l2-2m10 2l-2-2"/><path d="M1 12h4m14 0h4"/></svg></div>
+                        <h3>Telecom</h3>
+                        <p>Support abonnés, gestion des forfaits et accompagnement technique pour les operiteurs.</p>
+                    </article>
+                    <article class="secteur-card reveal">
+                        <div class="secteur-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M2 9h20"/><path d="M9 21V9"/></svg></div>
+                        <h3>Banque &amp; Finance</h3>
+                        <p>Service client bancaire, conseil financier et gestion des reclamations.</p>
+                    </article>
+                    <article class="secteur-card reveal">
+                        <div class="secteur-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                        <h3>Sante</h3>
+                        <p>Prise de rendez-vous, rappels patients et support aux professionnels de sante.</p>
+                    </article>
+                    <article class="secteur-card reveal">
+                        <div class="secteur-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></div>
+                        <h3>Retail &amp; E-commerce</h3>
+                        <p>Sav client, suivi de commandes et support technique pour vos clients.</p>
+                    </article>
+                    <article class="secteur-card reveal">
+                        <div class="secteur-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                        <h3>Energie</h3>
+                        <p>Service client, gestion des comptes et support technique pour les fournisseurs.</p>
+                    </article>
+                    <article class="secteur-card reveal">
+                        <div class="secteur-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
+                        <h3>Assurance</h3>
+                        <p>Gestion des sinistres, souscription et support assuré pour vos clients.</p>
+                    </article>
+                </div>
+                <div class="slider-nav">
+                    <button type="button" class="slider-btn" id="secteursPrev" aria-label="Secteurs precedents">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" class="slider-btn" id="secteursNext" aria-label="Secteurs suivants">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+                    </button>
+                </div>
             </div>
         </div>
     </section>
@@ -246,7 +358,14 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
 <footer class="footer">
     <div class="container footer-container">
         <div class="footer-brand">
-            <a href="#accueil" class="logo logo-footer"><span class="logo-mark">A</span><span class="logo-text">ATLANTIS</span></a>
+            <a href="#accueil" class="logo logo-footer">
+                <?php if (!empty($logoUrl)): ?>
+                    <img src="<?php echo htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8'); ?>" alt="ATLANTIS" style="height:38px;width:38px;object-fit:contain;border-radius:10px;background:rgba(255,255,255,0.1);">
+                <?php else: ?>
+                    <span class="logo-mark">A</span>
+                <?php endif; ?>
+                <span class="logo-text">ATLANTIS</span>
+            </a>
             <p>Votre relation client, notre savoir-faire.</p>
         </div>
         <div class="footer-links">
@@ -277,6 +396,6 @@ $policeC   = $settings['police_corps'] ?? 'Inter';
 <script>
 const BASE_URL = '<?php echo BASE_URL; ?>';
 </script>
-<script src="assets/js/script.js"></script>
+<script src="assets/js/script.js?v=7"></script>
 </body>
 </html>
