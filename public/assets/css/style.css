@@ -718,36 +718,6 @@ a { color: inherit; text-decoration: none; }
 #pourquoi { position: relative; overflow: hidden; }
 #pourquoi .container { position: relative; z-index: 1; }
 
-.why-decor {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
-    width: 52%;
-    max-width: 560px;
-    height: 100%;
-    pointer-events: none;
-    opacity: 0.18;
-    z-index: 0;
-    filter: blur(3px);
-    animation: floatSoft 4.5s ease-in-out infinite;
-}
-
-.why-decor svg { width: 100%; height: 100%; }
-
-.why-decor-bg {
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    border-radius: 28px;
-}
-
-@keyframes floatSoft {
-    0%, 100% { transform: translateY(-50%) translateX(0); }
-    50%      { transform: translateY(calc(-50% - 14px)) translateX(-12px); }
-}
-
 .why-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -755,6 +725,38 @@ a { color: inherit; text-decoration: none; }
     max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
+}
+
+.why-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.why-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center right;
+    opacity: 0.55;
+    filter: saturate(0.75) contrast(1.05) brightness(0.95);
+}
+
+.why-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(10,22,40,1) 0%, rgba(10,22,40,0.82) 26%, rgba(10,22,40,0.32) 58%, rgba(10,22,40,0) 82%),
+        linear-gradient(0deg, rgba(10,22,40,0.9) 0%, rgba(10,22,40,0) 30%, rgba(10,22,40,0) 70%, rgba(10,22,40,0.9) 100%);
+}
+
+[data-theme="dark"] .why-bg::after {
+    background:
+        linear-gradient(90deg, rgba(7,13,26,1) 0%, rgba(7,13,26,0.85) 26%, rgba(7,13,26,0.4) 58%, rgba(7,13,26,0) 82%),
+        linear-gradient(0deg, rgba(7,13,26,0.92) 0%, rgba(7,13,26,0) 30%, rgba(7,13,26,0) 70%, rgba(7,13,26,0.92) 100%);
 }
 
 .why-card {
@@ -1049,7 +1051,7 @@ a { color: inherit; text-decoration: none; }
     .service-card { flex: 0 0 300px; }
     .secteur-card { flex: 0 0 300px; }
     .section-title { font-size: 2.5rem; }
-    .why-decor { width: 70%; opacity: 0.12; }
+    .why-bg img { opacity: 0.4; object-position: center center; }
 }
 
 @media (max-width: 480px) {
@@ -1068,6 +1070,5 @@ a { color: inherit; text-decoration: none; }
     .reveal { opacity: 1; transform: none; transition: none; }
     .hero-content.reveal { animation: none; }
     .hero-badge { animation: none; }
-    .why-decor { animation: none; filter: none; }
     * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

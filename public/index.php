@@ -41,7 +41,7 @@ $logoUrl   = $settings['logo_url'] ?? '';
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23<?php echo ltrim($primary, '#'); ?>'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='%23<?php echo ltrim($secondary, '#'); ?>' font-family='Arial' font-weight='bold'>A</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=8">
+    <link rel="stylesheet" href="assets/css/style.css?v=10">
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($primary, ENT_QUOTES, 'UTF-8'); ?>;
@@ -227,26 +227,11 @@ $logoUrl   = $settings['logo_url'] ?? '';
 
     <!-- POURQUOI ATLANTIS -->
     <section id="pourquoi" class="section section-dark">
-        <div class="why-decor" aria-hidden="true">
+        <div class="why-bg" aria-hidden="true">
             <?php if (!empty($sections['pourquoi']['image_url'])): ?>
-                <div class="why-decor-bg" style="background-image:url('<?php echo htmlspecialchars($sections['pourquoi']['image_url'], ENT_QUOTES, 'UTF-8'); ?>');"></div>
+                <img src="<?php echo htmlspecialchars($sections['pourquoi']['image_url'], ENT_QUOTES, 'UTF-8'); ?>" alt="" loading="lazy">
             <?php else: ?>
-                <svg viewBox="0 0 480 480" shape-rendering="geometricPrecision" focusable="false">
-                    <circle cx="240" cy="240" r="208" fill="none" stroke="#00b4d8" stroke-opacity="0.4" stroke-width="2"/>
-                    <circle cx="240" cy="240" r="150" fill="#00b4d8" opacity="0.08"/>
-                    <g fill="none" stroke="#00b4d8" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round">
-                        <polyline points="118 300 218 232 300 262 382 158"/>
-                    </g>
-                    <circle cx="118" cy="300" r="6" fill="#00b4d8" fill-opacity="0.6"/>
-                    <circle cx="218" cy="232" r="6" fill="#00b4d8" fill-opacity="0.6"/>
-                    <circle cx="300" cy="262" r="6" fill="#00b4d8" fill-opacity="0.6"/>
-                    <circle cx="382" cy="158" r="6" fill="#00b4d8" fill-opacity="0.6"/>
-                    <g fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="10" stroke-linecap="round">
-                        <path d="M210 250 l14 -30 34 -4"/>
-                        <path d="M258 250 l-14 -30 -34 -4"/>
-                    </g>
-                    <text x="240" y="235" text-anchor="middle" font-family="Arial" font-size="34" font-weight="700" fill="#00b4d8" fill-opacity="0.5">A</text>
-                </svg>
+                <img src="assets/images/why-bg.jpg" alt="" loading="lazy">
             <?php endif; ?>
         </div>
         <div class="container">
@@ -468,6 +453,6 @@ $logoUrl   = $settings['logo_url'] ?? '';
 <script>
 const BASE_URL = '<?php echo BASE_URL; ?>';
 </script>
-<script src="assets/js/script.js?v=8"></script>
+<script src="assets/js/script.js?v=10"></script>
 </body>
 </html>
