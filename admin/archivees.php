@@ -18,7 +18,7 @@ $csrf = generateCsrfToken();
     <title>Candidatures archivees - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=2">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=5">
 </head>
 <body class="admin-body">
     <?php include __DIR__ . '/sidebar.php'; ?>
@@ -43,7 +43,7 @@ $csrf = generateCsrfToken();
                 <div class="table-responsive">
                     <table class="data-table" id="applicationsTable">
                         <thead>
-                            <tr><th>ID</th><th>Nom</th><th>Prenom</th><th>Telephone</th><th>Entreprise</th><th>Type</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+                            <tr><th>ID</th><th>Nom</th><th>Prenom</th><th>Telephone</th><th>Entreprise</th><th>Type</th><th>Statut</th><th>Dossier</th><th>Date</th><th>Actions</th></tr>
                         </thead>
                         <tbody id="applicationsBody"><tr><td colspan="9" class="text-center">Chargement...</td></tr></tbody>
                     </table>
@@ -68,6 +68,6 @@ $csrf = generateCsrfToken();
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     const FILTER_STATUT = 'archive';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=2"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=4"></script>
 </body>
 </html>

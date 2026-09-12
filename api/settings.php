@@ -76,7 +76,8 @@ function handleUpdate(): void
 
     $allowedKeys = [
         'couleur_primaire', 'couleur_secondaire', 'couleur_fond',
-        'police_titre', 'police_corps', 'logo_url', 'banniere_url'
+        'police_titre', 'police_corps', 'logo_url', 'banniere_url',
+        'login_fond', 'login_primaire', 'login_secondaire', 'login_bg_url'
     ];
 
     try {

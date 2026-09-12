@@ -40,6 +40,19 @@
     // =========================================================================
     var loginForm = document.getElementById('loginForm');
     if (loginForm) {
+
+        // Anti pre-remplissage automatique du navigateur (sans casser la sauvegarde) :
+        // champs en readonly au chargement -> vides ; readonly retire au premier focus.
+        ['identifiant', 'mot_de_passe'].forEach(function(id) {
+            var field = document.getElementById(id);
+            if (!field) return;
+            field.readOnly = true;
+            field.value = '';
+            field.addEventListener('focus', function() {
+                field.removeAttribute('readonly');
+            });
+        });
+
         loginForm.addEventListener('submit', function(e) {
             e.preventDefault();
             var btn = document.getElementById('loginBtn');
@@ -131,7 +144,7 @@
 
         function renderApplicationsTable(items, total, page, pages) {
             if (!items || items.length === 0) {
-                applicationsBody.innerHTML = '<tr><td colspan="9" class="text-center">Aucune demande trouvee.</td></tr>';
+                applicationsBody.innerHTML = '<tr><td colspan="10" class="text-center">Aucune demande trouvee.</td></tr>';
                 document.getElementById('pagination').innerHTML = '';
                 return;
             }
@@ -146,6 +159,9 @@
                 html += '<td>' + escHtml(app.entreprise || '-') + '</td>';
                 html += '<td><span class="badge badge-' + app.type + '">' + typeLabel(app.type) + '</span></td>';
                 html += '<td><span class="badge badge-' + statutClass(app.statut) + '">' + statutLabel(app.statut) + '</span></td>';
+                html += '<td>' + (parseInt(app.pieces_count, 10) > 0
+                    ? '<button class="btn btn-sm btn-outline detail-btn" data-id="' + app.id + '">' + app.pieces_count + ' fichier(s)</button>'
+                    : '<span class="text-muted">-</span>') + '</td>';
                 html += '<td>' + formatDate(app.created_at) + '</td>';
                 html += '<td>';
                 html += '<button class="btn btn-sm btn-outline detail-btn" data-id="' + app.id + '">Voir</button> ';
@@ -219,6 +235,7 @@
             html += detailField('Type', '<span class="badge badge-' + app.type + '">' + typeLabel(app.type) + '</span>');
             html += detailField('Statut actuel', '<span class="badge badge-' + statutClass(app.statut) + '">' + statutLabel(app.statut) + '</span>');
             html += detailField('Message', app.message || '-');
+            html += detailField('Dossier de candidature', piecesDetailHtml(data.pieces));
             html += detailField('Cree le', formatDate(app.created_at));
             html += detailField('Modifie le', formatDate(app.updated_at));
             document.getElementById('modalBody').innerHTML = html;
@@ -856,6 +873,31 @@
         var hours = ('0' + d.getHours()).slice(-2);
         var mins = ('0' + d.getMinutes()).slice(-2);
         return day + '/' + month + '/' + year + ' a ' + hours + ':' + mins;
+    }
+
+    function formatSize(bytes) {
+        if (bytes == null) return '-';
+        bytes = parseInt(bytes, 10);
+        if (bytes < 1024) return bytes + ' o';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' Ko';
+        return (bytes / 1048576).toFixed(1) + ' Mo';
+    }
+
+    function piecesDetailHtml(pieces) {
+        if (!pieces || pieces.length === 0) return '-';
+        var rows = '';
+        pieces.forEach(function(p) {
+            var isPdf = p.mime_type === 'application/pdf';
+            var badge = isPdf ? 'danger' : 'success';
+            var label = isPdf ? 'PDF' : 'IMG';
+            rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">';
+            rows += '<span class="badge badge-' + badge + '" style="min-width:40px;text-align:center">' + label + '</span>';
+            rows += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(p.nom_fichier) + '">' + escHtml(p.nom_fichier) + '</span>';
+            rows += '<span style="color:var(--text-muted);font-size:.8rem;white-space:nowrap">' + formatSize(p.taille) + '</span>';
+            rows += '<a class="btn btn-sm btn-outline" href="' + BASE_URL + '/api/applications.php?action=download_piece&id=' + p.id + '" download="' + escHtml(p.nom_fichier) + '">Telecharger</a>';
+            rows += '</div>';
+        });
+        return rows;
     }
 
     function typeLabel(type) {

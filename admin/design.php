@@ -7,8 +7,8 @@
 
 require_once __DIR__ . '/../includes/auth_check.php';
 
-// CSM et admin peuvent y acceder (admin en lecture seule)
-$readonly = !hasPermission('csm');
+// CSM et admin peuvent y acceder et editer
+$readonly = !hasPermission(['csm', 'admin']);
 
 $csrf = generateCsrfToken();
 
@@ -32,7 +32,7 @@ $sections = $stmt->fetchAll();
     <title>Design - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=2">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=5">
 </head>
 <body class="admin-body">
     <?php include __DIR__ . '/sidebar.php'; ?>
@@ -129,6 +129,47 @@ $sections = $stmt->fetchAll();
                 </div>
             </div>
 
+            <!-- Apparence de la page de connexion -->
+            <div class="card">
+                <div class="card-header"><h2>Apparence de la page de connexion</h2></div>
+                <div class="card-body">
+                    <p class="info-text" style="margin-bottom:16px">Fond et couleurs de la page de connexion de l'espace admin.</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Couleur de fond</label>
+                            <div class="color-input-group">
+                                <input type="color" id="login_fond" value="<?php echo htmlspecialchars($settings['login_fond'] ?? '#0a1628', ENT_QUOTES); ?>" <?php echo $readonly ? 'disabled' : ''; ?>>
+                                <input type="text" class="form-input" value="<?php echo htmlspecialchars($settings['login_fond'] ?? '#0a1628', ENT_QUOTES); ?>" data-setting="login_fond" <?php echo $readonly ? 'disabled' : ''; ?>>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Couleur primaire (logo &amp; titre)</label>
+                            <div class="color-input-group">
+                                <input type="color" id="login_primaire" value="<?php echo htmlspecialchars($settings['login_primaire'] ?? '#0a1628', ENT_QUOTES); ?>" <?php echo $readonly ? 'disabled' : ''; ?>>
+                                <input type="text" class="form-input" value="<?php echo htmlspecialchars($settings['login_primaire'] ?? '#0a1628', ENT_QUOTES); ?>" data-setting="login_primaire" <?php echo $readonly ? 'disabled' : ''; ?>>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Couleur accent (bouton, focus, halos)</label>
+                            <div class="color-input-group">
+                                <input type="color" id="login_secondaire" value="<?php echo htmlspecialchars($settings['login_secondaire'] ?? '#00b4d8', ENT_QUOTES); ?>" <?php echo $readonly ? 'disabled' : ''; ?>>
+                                <input type="text" class="form-input" value="<?php echo htmlspecialchars($settings['login_secondaire'] ?? '#00b4d8', ENT_QUOTES); ?>" data-setting="login_secondaire" <?php echo $readonly ? 'disabled' : ''; ?>>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Image de fond (optionnel, 4Mo max)</label>
+                            <input type="file" class="upload-input" data-upload-type="login_bg" accept="image/png,image/jpeg,image/webp" <?php echo $readonly ? 'disabled' : ''; ?>>
+                            <?php if (!empty($settings['login_bg_url'])): ?>
+                                <div class="upload-preview">
+                                    <img src="<?php echo htmlspecialchars($settings['login_bg_url'], ENT_QUOTES, 'UTF-8'); ?>" alt="Fond de connexion actuel" class="upload-preview-img">
+                                    <?php if (!$readonly): ?><button type="button" class="btn btn-sm btn-danger upload-remove" data-upload-type="login_bg">Supprimer</button><?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Sections -->
             <div class="card">
                 <div class="card-header"><h2>Sections de la landing page</h2></div>
@@ -183,6 +224,6 @@ $sections = $stmt->fetchAll();
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     const READONLY = <?php echo $readonly ? 'true' : 'false'; ?>;
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=2"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=4"></script>
 </body>
 </html>

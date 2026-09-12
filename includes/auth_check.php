@@ -17,6 +17,9 @@
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/csrf.php';
 
+// 0. Connexion automatique via le cookie "se souvenir de moi"
+maybeAutoLogin();
+
 // 1. Verifier que l'utilisateur est connecte
 requireAuth();
 

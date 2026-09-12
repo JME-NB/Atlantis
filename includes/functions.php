@@ -189,6 +189,150 @@ function startAdminSession(): void
     session_regenerate_id(true);
 }
 
+// ---------------------------------------------------------------------------
+// "SE SOUVENIR DE MOI" (cookie signe HMAC, 30 jours)
+// ---------------------------------------------------------------------------
+
+/**
+ * Chemin du cookie (scope au sous-dossier du projet).
+ *
+ * @return string
+ */
+function rememberCookiePath(): string
+{
+    $path = parse_url(BASE_URL, PHP_URL_PATH) ?: '/';
+    return rtrim($path, '/') . '/';
+}
+
+/**
+ * Encode une chaine en base64url.
+ *
+ * @param string $data
+ * @return string
+ */
+function b64url(string $data): string
+{
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+/**
+ * Decode une chaine base64url.
+ *
+ * @param string $data
+ * @return string
+ */
+function b64urlDecode(string $data): string
+{
+    $decoded = base64_decode(strtr($data, '-_', '+/'), true);
+    return $decoded === false ? '' : $decoded;
+}
+
+/**
+ * Emet le cookie "se souvenir de moi" (signe par HMAC).
+ *
+ * @param int $userId
+ * @return void
+ */
+function issueRememberCookie(int $userId): void
+{
+    $expiry = time() + REMEMBER_COOKIE_LIFETIME;
+    $payload = $userId . '|' . $expiry;
+    $signature = hash_hmac('sha256', $payload, APP_SECRET);
+    $token = b64url($payload) . '.' . $signature;
+
+    setcookie(REMEMBER_COOKIE, $token, [
+        'expires' => $expiry,
+        'path' => rememberCookiePath(),
+        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
+}
+
+/**
+ * Supprime le cookie "se souvenir de moi".
+ */
+function clearRememberCookie(): void
+{
+    if (isset($_COOKIE[REMEMBER_COOKIE])) {
+        setcookie(REMEMBER_COOKIE, '', [
+            'expires' => time() - 3600,
+            'path' => rememberCookiePath(),
+            'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'httponly' => true,
+            'samesite' => 'Strict',
+        ]);
+        unset($_COOKIE[REMEMBER_COOKIE]);
+    }
+}
+
+/**
+ * Reconnecte automatiquement un utilisateur via le cookie "se souvenir de moi".
+ * A appeler avant les controles d'authentification (login.php, auth_check.php).
+ */
+function maybeAutoLogin(): void
+{
+    if (isLoggedIn()) return;
+
+    $token = $_COOKIE[REMEMBER_COOKIE] ?? '';
+    if ($token === '') return;
+
+    $parts = explode('.', $token);
+    if (count($parts) !== 2) {
+        clearRememberCookie();
+        return;
+    }
+
+    [$encodedPayload, $signature] = $parts;
+    $payload = b64urlDecode((string) $encodedPayload);
+    if ($payload === '' || !hash_equals(hash_hmac('sha256', $payload, APP_SECRET), (string) $signature)) {
+        clearRememberCookie();
+        return;
+    }
+
+    $segments = explode('|', $payload);
+    if (count($segments) !== 2) {
+        clearRememberCookie();
+        return;
+    }
+
+    [$userId, $expiry] = $segments;
+    if (!ctype_digit((string) $userId) || !ctype_digit((string) $expiry) || (int) $expiry < time()) {
+        clearRememberCookie();
+        return;
+    }
+
+    try {
+        $stmt = getDB()->prepare(
+            'SELECT id, identifiant, nom_complet, role, is_super_admin, must_change_password, statut_compte
+             FROM users WHERE id = :id AND deleted_at IS NULL LIMIT 1'
+        );
+        $stmt->execute([':id' => (int) $userId]);
+        $user = $stmt->fetch();
+
+        if (!$user || $user['statut_compte'] === 'desactive') {
+            clearRememberCookie();
+            return;
+        }
+
+        $_SESSION['admin_id']          = (int) $user['id'];
+        $_SESSION['admin_username']    = $user['identifiant'];
+        $_SESSION['admin_role']        = $user['role'];
+        $_SESSION['admin_nom_complet'] = $user['nom_complet'];
+        $_SESSION['admin_is_super']    = (bool) $user['is_super_admin'];
+
+        session_regenerate_id(true);
+
+        // Rotation du cookie (limite le rejeu)
+        issueRememberCookie((int) $user['id']);
+
+        logAudit('auto_login', 'user', (int) $user['id'], 'Connexion automatique (se souvenir de moi)');
+    } catch (PDOException $e) {
+        error_log('Auto login error: ' . $e->getMessage());
+        clearRememberCookie();
+    }
+}
+
 /**
  * Verifie si l'utilisateur est connecte en tant qu'admin.
  *

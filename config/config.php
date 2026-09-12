@@ -39,3 +39,8 @@ define('LOGIN_LOCKOUT_TIME', 900);          // Duree du blocage en secondes (15 
 // --- Configuration du site ---
 define('SITE_NAME', 'ATLANTIS');
 define('SITE_DESC', 'Centre d\'appel & relation client');
+
+// --- "Se souvenir de moi" (cookie signe HMAC) ---
+define('APP_SECRET', '02501dae012b02b7add78d190ee663142b2d87d73642e0be4f24efb4faf88fd1'); // Cle HMAC (a garder secrete)
+define('REMEMBER_COOKIE', 'atlantis_remember');
+define('REMEMBER_COOKIE_LIFETIME', 2592000); // 30 jours en secondes

@@ -31,6 +31,29 @@ CREATE TABLE IF NOT EXISTS `applications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------------------------------------------------------------------
+-- Table des pieces jointes (Dossier de candidature)
+-- application_id NULL tant que la candidature n'est pas soumise (statut pending).
+-- Fichiers stockes hors acces web dans private/candidatures/.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `application_pieces` (
+    `id`             INT AUTO_INCREMENT PRIMARY KEY,
+    `application_id` INT DEFAULT NULL,
+    `token`          VARCHAR(64) NOT NULL UNIQUE,
+    `session_hash`   VARCHAR(64) NOT NULL,
+    `nom_fichier`    VARCHAR(255) NOT NULL,
+    `chemin_fichier` VARCHAR(255) NOT NULL,
+    `mime_type`      VARCHAR(100) NOT NULL,
+    `taille`         INT UNSIGNED NOT NULL,
+    `statut`         ENUM('pending','recu') NOT NULL DEFAULT 'pending',
+    `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_token` (`token`),
+    INDEX `idx_application` (`application_id`),
+    INDEX `idx_statut` (`statut`),
+    CONSTRAINT `fk_piece_app` FOREIGN KEY (`application_id`)
+        REFERENCES `applications`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ---------------------------------------------------------------------------
 -- Table des comptes administrateurs
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `users` (
@@ -124,7 +147,11 @@ INSERT INTO `site_settings` (`cle`, `valeur`) VALUES
 ('police_titre', 'Inter'),
 ('police_corps', 'Inter'),
 ('logo_url', ''),
-('banniere_url', '');
+('banniere_url', ''),
+('login_fond', '#0a1628'),
+('login_primaire', '#0a1628'),
+('login_secondaire', '#00b4d8'),
+('login_bg_url', '');
 
 -- ---------------------------------------------------------------------------
 -- Sections de la landing page par defaut

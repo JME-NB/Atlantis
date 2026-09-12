@@ -42,6 +42,9 @@ if (($_GET['action'] ?? '') === 'remove') {
     } elseif ($type === 'banniere') {
         $stmt = $pdo->prepare('UPDATE site_settings SET valeur = "", updated_by = :uid, updated_at = NOW() WHERE cle = "banniere_url"');
         $stmt->execute([':uid' => $userId]);
+    } elseif ($type === 'login_bg') {
+        $stmt = $pdo->prepare('UPDATE site_settings SET valeur = "", updated_by = :uid, updated_at = NOW() WHERE cle = "login_bg_url"');
+        $stmt->execute([':uid' => $userId]);
     } elseif ($type === 'section' && $sectionId > 0) {
         $stmt = $pdo->prepare('UPDATE site_sections SET image_url = NULL, updated_by = :uid, updated_at = NOW() WHERE id = :id');
         $stmt->execute([':uid' => $userId, ':id' => $sectionId]);
@@ -82,6 +85,7 @@ if (!isset($allowedTypes[$mimeType])) {
 $maxSizes = [
     'logo'     => 2 * 1024 * 1024,
     'banniere' => 4 * 1024 * 1024,
+    'login_bg' => 4 * 1024 * 1024,
     'section'  => 3 * 1024 * 1024,
 ];
 
@@ -95,6 +99,7 @@ if ($_FILES['image']['size'] > $maxSize) {
 $subdirs = [
     'logo'     => 'logos',
     'banniere' => 'hero',
+    'login_bg' => 'hero',
     'section'  => 'sections',
 ];
 
@@ -123,9 +128,12 @@ if ($type === 'logo') {
     $stmt = $pdo->prepare('INSERT INTO site_settings (cle, valeur, updated_by, updated_at) VALUES (:cle, :val, :uid, NOW()) ON DUPLICATE KEY UPDATE valeur = :val2, updated_by = :uid2, updated_at = NOW()');
     $stmt->execute([':cle' => 'logo_url', ':val' => $relativeUrl, ':val2' => $relativeUrl, ':uid' => $userId, ':uid2' => $userId]);
 } elseif ($type === 'banniere') {
-    $stmt = $pdo->prepare('INSERT INTO site_settings (cle, valeur, updated_by, updated_at) VALUES (:cle, :val, :uid, NOW()) ON DUPLICATE KEY UPDATE valeur = :val2, updated_by = :uid2, updated_at = NOW()');
-    $stmt->execute([':cle' => 'banniere_url', ':val' => $relativeUrl, ':val2' => $relativeUrl, ':uid' => $userId, ':uid2' => $userId]);
-} elseif ($type === 'section' && $sectionId > 0) {
+        $stmt = $pdo->prepare('INSERT INTO site_settings (cle, valeur, updated_by, updated_at) VALUES (:cle, :val, :uid, NOW()) ON DUPLICATE KEY UPDATE valeur = :val2, updated_by = :uid2, updated_at = NOW()');
+        $stmt->execute([':cle' => 'banniere_url', ':val' => $relativeUrl, ':val2' => $relativeUrl, ':uid' => $userId, ':uid2' => $userId]);
+    } elseif ($type === 'login_bg') {
+        $stmt = $pdo->prepare('INSERT INTO site_settings (cle, valeur, updated_by, updated_at) VALUES (:cle, :val, :uid, NOW()) ON DUPLICATE KEY UPDATE valeur = :val2, updated_by = :uid2, updated_at = NOW()');
+        $stmt->execute([':cle' => 'login_bg_url', ':val' => $relativeUrl, ':val2' => $relativeUrl, ':uid' => $userId, ':uid2' => $userId]);
+    } elseif ($type === 'section' && $sectionId > 0) {
     $stmt = $pdo->prepare('UPDATE site_sections SET image_url = :url, updated_by = :uid, updated_at = NOW() WHERE id = :id');
     $stmt->execute([':url' => $relativeUrl, ':uid' => $userId, ':id' => $sectionId]);
 }

@@ -41,7 +41,7 @@ $logoUrl   = $settings['logo_url'] ?? '';
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23<?php echo ltrim($primary, '#'); ?>'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='%23<?php echo ltrim($secondary, '#'); ?>' font-family='Arial' font-weight='bold'>A</text></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css?v=10">
+    <link rel="stylesheet" href="assets/css/style.css?v=11">
     <style>
         :root {
             --primary: <?php echo htmlspecialchars($primary, ENT_QUOTES, 'UTF-8'); ?>;
@@ -399,12 +399,24 @@ $logoUrl   = $settings['logo_url'] ?? '';
                             <small class="field-error" id="typeError"></small>
                         </div>
                     </div>
+                  
                     <div class="form-group">
+                        <label for="piecesInput">Dossier de candidature <span class="req">*</span></label>
+                        <div class="upload-zone" id="uploadZone" role="button" tabindex="0" aria-label="Ajouter des pieces jointes">
+                            <svg class="upload-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            <span class="upload-zone-title">Cliquez pour ajouter vos pieces jointes</span>
+                            <small class="upload-hint">Formats : PDF, JPG, JPEG, PNG - 5 Mo max par fichier - 6 fichiers max</small>
+                        </div>
+                        <input type="file" id="piecesInput" name="pieces" accept=".jpg,.jpeg,.png,.pdf" multiple hidden>
+                        <div class="piece-list" id="pieceList" hidden></div>
+                        <small class="field-error" id="piecesError"></small>
+                    </div>
+                      <div class="form-group">
                         <label for="message">Message</label>
                         <textarea id="message" name="message" rows="4" placeholder="Decrivez brievement votre projet ou votre profil..."></textarea>
                     </div>
                     <div class="form-feedback" id="formFeedback" role="alert" hidden></div>
-                    <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Envoyer ma demande</button>
+                    <button type="submit" class="btn btn-primary btn-block" id="submitBtn" disabled>Envoyer ma demande</button>
                 </form>
             </div>
         </div>
@@ -453,6 +465,6 @@ $logoUrl   = $settings['logo_url'] ?? '';
 <script>
 const BASE_URL = '<?php echo BASE_URL; ?>';
 </script>
-<script src="assets/js/script.js?v=10"></script>
+<script src="assets/js/script.js?v=11"></script>
 </body>
 </html>

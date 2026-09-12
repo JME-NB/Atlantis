@@ -79,13 +79,17 @@ function handleLogin(): void
 
         // Connexion reussie
         resetLoginAttempts($identifiant);
-        startAdminSession();
-
         $_SESSION['admin_id']           = $user['id'];
         $_SESSION['admin_username']     = $user['identifiant'];
         $_SESSION['admin_role']         = $user['role'];
         $_SESSION['admin_nom_complet']  = $user['nom_complet'];
         $_SESSION['admin_is_super']     = (bool) $user['is_super_admin'];
+        startAdminSession();
+
+        // "Se souvenir de moi" : cookie signe HMAC de 30 jours
+        if (($_POST['remember_me'] ?? '') === '1') {
+            issueRememberCookie((int) $user['id']);
+        }
 
         logAudit('login_success', 'user', $user['id'], 'Connexion reussie');
 
@@ -112,6 +116,7 @@ function handleLogout(): void
         logAudit('logout', 'user', getAdminId(), 'Deconnexion');
     }
 
+    clearRememberCookie();
     session_destroy();
     jsonSuccess('Deconnexion reussie.');
 }
