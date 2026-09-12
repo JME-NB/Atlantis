@@ -60,7 +60,7 @@ $loginBgUrl = trim((string)($loginSettings['login_bg_url'] ?? ''));
     <title>Connexion - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=5">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=6">
     <style>
     :root {
         --login-bg: <?php echo $loginBg !== '' ? htmlspecialchars($loginBg, ENT_QUOTES) : '#0a1628'; ?>;
