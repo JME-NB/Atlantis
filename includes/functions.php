@@ -105,6 +105,58 @@ function jsonError(int $code, string $message, array $extra = []): void
 }
 
 // ---------------------------------------------------------------------------
+// JOURNALISATION DES ERREURS
+// ---------------------------------------------------------------------------
+
+/**
+ * Enregistre une erreur dans error_logs + error_log() PHP.
+ *
+ * @param string      $niveau   ERROR | WARNING | INFO
+ * @param string      $message  Description de l'erreur
+ * @param string      $fichier  Fichier source
+ * @param int         $ligne    Numero de ligne
+ * @param string|null $url      URL de la requete (auto si possible)
+ * @param int|null    $userId   ID de l'utilisateur connecte (auto si possible)
+ */
+function logError(
+    string $niveau,
+    string $message,
+    string $fichier = '',
+    int $ligne = 0,
+    ?string $url = null,
+    ?int $userId = null
+): void {
+    ensureSession();
+
+    if ($url === null) {
+        $url = ($_SERVER['REQUEST_URI'] ?? '');
+    }
+    if ($userId === null) {
+        $userId = $_SESSION['admin_id'] ?? null;
+    }
+
+    error_log("[ATLANTIS {$niveau}] {$message} ({$fichier}:{$ligne})");
+
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare(
+            'INSERT INTO error_logs (level, message, `file`, `line`, url, user_id)
+             VALUES (:niveau, :message, :fichier, :ligne, :url, :user_id)'
+        );
+        $stmt->execute([
+            ':niveau'   => $niveau,
+            ':message'  => $message,
+            ':fichier'  => $fichier,
+            ':ligne'    => $ligne,
+            ':url'      => $url,
+            ':user_id'  => $userId,
+        ]);
+    } catch (PDOException $e) {
+        error_log('Error log insert failed: ' . $e->getMessage());
+    }
+}
+
+// ---------------------------------------------------------------------------
 // JOURNAL D'AUDIT
 // ---------------------------------------------------------------------------
 
@@ -151,8 +203,194 @@ function logAudit(
         ]);
     } catch (PDOException $e) {
         // L'audit ne doit jamais faire echouer l'operation principale.
-        error_log('Audit log failed: ' . $e->getMessage());
+        logError('ERROR', 'Audit log failed: ' . $e->getMessage(), 'includes/functions.php', 0, null, $userId);
     }
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICATIONS
+// ---------------------------------------------------------------------------
+
+function getAdminDisplayName(): string
+{
+    ensureSession();
+    return $_SESSION['admin_nom_complet'] ?? ($_SESSION['admin_username'] ?? 'systeme');
+}
+
+/**
+ * Cree une notification destinee a des roles.
+ * L'auteur de l'action est stocke (auteur_id) ; il est exclu a la lecture,
+ * uniquement pour son propre compte, pas pour les autres membres de son role.
+ *
+ * @param array $destRoles ex. ['admin','gestionnaire']
+ * @param bool  $recordAuthor false si l'action vient du public (pas d'auteur admin)
+ */
+function notify(
+    string $type,
+    string $message,
+    array $destRoles,
+    ?string $cibleType = null,
+    ?int $cibleId = null,
+    bool $recordAuthor = true
+): void {
+    ensureSession();
+    $authorId = $recordAuthor ? ($_SESSION['admin_id'] ?? null) : null;
+
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare(
+            'INSERT INTO notifications
+                (type_notification, message, destinataires, auteur_id, auteur_identifiant, cible_type, cible_id)
+             VALUES
+                (:type, :message, :dest, :auteur_id, :auteur_identifiant, :cible_type, :cible_id)'
+        );
+        $stmt->execute([
+            ':type'               => $type,
+            ':message'            => $message,
+            ':dest'               => implode(',', $destRoles),
+            ':auteur_id'          => $authorId,
+            ':auteur_identifiant' => $authorId !== null ? getAdminDisplayName() : null,
+            ':cible_type'         => $cibleType,
+            ':cible_id'           => $cibleId,
+        ]);
+    } catch (PDOException $e) {
+        // La notification ne doit jamais faire echouer l'operation principale.
+        logError('ERROR', 'Notification insert failed: ' . $e->getMessage(), 'includes/functions.php', 0, null, $authorId);
+    }
+}
+
+/**
+ * Nombre de notifications non lues pour l'utilisateur connecte.
+ */
+function countUnreadNotifications(): int
+{
+    ensureSession();
+    $userId = $_SESSION['admin_id'] ?? null;
+    $role   = getAdminRole();
+    if ($userId === null || $role === null) return 0;
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*)
+               FROM notifications n
+               LEFT JOIN notification_reads r
+                      ON r.notification_id = n.id AND r.user_id = :uid1
+              WHERE r.user_id IS NULL
+                AND FIND_IN_SET(:role, n.destinataires)
+                AND (n.auteur_id IS NULL OR n.auteur_id <> :uid2)'
+        );
+        $stmt->execute([':uid1' => $userId, ':uid2' => $userId, ':role' => $role]);
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        logError('ERROR', 'Notification count failed: ' . $e->getMessage(), 'includes/functions.php', 0, null, $userId);
+        return 0;
+    }
+}
+
+/**
+ * Liste des notifications visibles par l'utilisateur connecte.
+ * @return array
+ */
+function listNotifications(int $limit = 30): array
+{
+    ensureSession();
+    $userId = $_SESSION['admin_id'] ?? null;
+    $role   = getAdminRole();
+    if ($userId === null || $role === null) return [];
+    $limit = max(1, min(100, $limit));
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare(
+            'SELECT n.id, n.type_notification, n.message, n.cible_type, n.cible_id,
+                    n.auteur_identifiant, n.cree_le,
+                    (r.user_id IS NOT NULL) AS lu
+               FROM notifications n
+               LEFT JOIN notification_reads r
+                      ON r.notification_id = n.id AND r.user_id = :uid1
+              WHERE FIND_IN_SET(:role, n.destinataires)
+                AND (n.auteur_id IS NULL OR n.auteur_id <> :uid2)
+              ORDER BY n.id DESC
+              LIMIT :lim'
+        );
+        $stmt->bindValue(':uid1', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':uid2', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':role', $role, PDO::PARAM_STR);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        logError('ERROR', 'Notification list failed: ' . $e->getMessage(), 'includes/functions.php', 0, null, $userId);
+        return [];
+    }
+}
+
+/**
+ * Marque une notification comme lue (si visible par l'utilisateur).
+ */
+function markNotificationRead(int $id): void
+{
+    ensureSession();
+    $userId = $_SESSION['admin_id'] ?? null;
+    $role   = getAdminRole();
+    if ($userId === null || $role === null) return;
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare(
+            'INSERT IGNORE INTO notification_reads (user_id, notification_id)
+             SELECT :uid1, n.id FROM notifications n
+              WHERE n.id = :nid AND FIND_IN_SET(:role, n.destinataires)
+                AND (n.auteur_id IS NULL OR n.auteur_id <> :uid2)'
+        );
+        $stmt->execute([':uid1' => $userId, ':uid2' => $userId, ':nid' => $id, ':role' => $role]);
+    } catch (PDOException $e) {
+        logError('ERROR', 'Notification mark read failed: ' . $e->getMessage(), 'includes/functions.php', 0, null, $userId);
+    }
+}
+
+/**
+ * Marque toutes les notifications visibles comme lues.
+ */
+function markAllNotificationsRead(): void
+{
+    ensureSession();
+    $userId = $_SESSION['admin_id'] ?? null;
+    $role   = getAdminRole();
+    if ($userId === null || $role === null) return;
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare(
+            'INSERT IGNORE INTO notification_reads (user_id, notification_id)
+             SELECT :uid1, n.id FROM notifications n
+              WHERE FIND_IN_SET(:role, n.destinataires)
+                AND (n.auteur_id IS NULL OR n.auteur_id <> :uid2)'
+        );
+        $stmt->execute([':uid1' => $userId, ':uid2' => $userId, ':role' => $role]);
+    } catch (PDOException $e) {
+        logError('ERROR', 'Notification mark all read failed: ' . $e->getMessage(), 'includes/functions.php', 0, null, $userId);
+    }
+}
+
+/**
+ * HTML de la cloche de notifications (panneau rempli en JS).
+ */
+function renderNotificationBellHtml(): string
+{
+    $count = countUnreadNotifications();
+    $badge = $count > 0
+        ? '<span class="notif-badge">' . $count . '</span>'
+        : '<span class="notif-badge" style="display:none;">0</span>';
+
+    return '<div class="notif-bell">'
+        . '<button type="button" class="notif-trigger" aria-label="Notifications">'
+        . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+        . $badge
+        . '</button>'
+        . '<div class="notif-panel">'
+        . '<div class="notif-header"><span>Notifications</span>'
+        . '<button type="button" class="notif-mark-all">Tout marquer comme lu</button></div>'
+        . '<div class="notif-list"></div>'
+        . '</div>'
+        . '</div>';
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +406,7 @@ function ensureSession(): void
     if (session_status() === PHP_SESSION_NONE) {
         ini_set('session.cookie_httponly', '1');
         ini_set('session.cookie_samesite', 'Strict');
+        ini_set('session.cookie_secure', isSecureConnection() ? '1' : '0');
         ini_set('session.use_strict_mode', '1');
         ini_set('session.gc_maxlifetime', (string) SESSION_LIFETIME);
         session_start();
@@ -187,6 +426,41 @@ function startAdminSession(): void
     ensureSession();
 
     session_regenerate_id(true);
+}
+
+// ---------------------------------------------------------------------------
+// POLITIQUE DE MOT DE PASSE (source unique de verite)
+// ---------------------------------------------------------------------------
+
+/**
+ * Longueur minimale imposee pour les mots de passe.
+ */
+const PASSWORD_MIN_LENGTH = 8;
+
+/**
+ * Valide un mot de passe selon la politique du site :
+ *   - 8 caracteres minimum
+ *   - au moins une majuscule
+ *   - au moins un chiffre
+ *
+ * @param string $pwd Mot de passe a valider.
+ * @return string|null Message d'erreur, ou null si le mot de passe est valide.
+ */
+function validatePasswordPolicy(string $pwd): ?string
+{
+    if (mb_strlen($pwd) < PASSWORD_MIN_LENGTH) {
+        return 'Le mot de passe doit contenir au moins ' . PASSWORD_MIN_LENGTH . ' caracteres.';
+    }
+
+    if (!preg_match('/[A-Z]/', $pwd)) {
+        return 'Le mot de passe doit contenir au moins une majuscule.';
+    }
+
+    if (!preg_match('/[0-9]/', $pwd)) {
+        return 'Le mot de passe doit contenir au moins un chiffre.';
+    }
+
+    return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,6 +502,25 @@ function b64urlDecode(string $data): string
 }
 
 /**
+ * Detecte si la connexion est securisee (HTTPS direct ou via proxy).
+ *
+ * @return bool
+ */
+function isSecureConnection(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+    if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
+        return true;
+    }
+    if (($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '') === 'on') {
+        return true;
+    }
+    return defined('FORCE_SSL') && FORCE_SSL;
+}
+
+/**
  * Emet le cookie "se souvenir de moi" (signe par HMAC).
  *
  * @param int $userId
@@ -243,7 +536,7 @@ function issueRememberCookie(int $userId): void
     setcookie(REMEMBER_COOKIE, $token, [
         'expires' => $expiry,
         'path' => rememberCookiePath(),
-        'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'secure' => isSecureConnection(),
         'httponly' => true,
         'samesite' => 'Strict',
     ]);
@@ -258,7 +551,7 @@ function clearRememberCookie(): void
         setcookie(REMEMBER_COOKIE, '', [
             'expires' => time() - 3600,
             'path' => rememberCookiePath(),
-            'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+            'secure' => isSecureConnection(),
             'httponly' => true,
             'samesite' => 'Strict',
         ]);
@@ -328,7 +621,7 @@ function maybeAutoLogin(): void
 
         logAudit('auto_login', 'user', (int) $user['id'], 'Connexion automatique (se souvenir de moi)');
     } catch (PDOException $e) {
-        error_log('Auto login error: ' . $e->getMessage());
+        logError('ERROR', 'Auto login error: ' . $e->getMessage(), 'includes/functions.php', 0, null, (int) $userId);
         clearRememberCookie();
     }
 }
@@ -427,6 +720,28 @@ function isSuperAdmin(): bool
     return isset($_SESSION['admin_is_super']) && $_SESSION['admin_is_super'] === true;
 }
 
+
+/**
+ * Garde standardisee pour un endpoint API admin (JSON) : verifie la methode,
+ * la connexion, les permissions et le token CSRF. En cas d'echec, repond
+ * en JSON et termine l'execution.
+ *
+ * @param string          $method      Methode HTTP attendue (ex: 'POST').
+ * @param string|array    $permissions Role(s) autorise(s).
+ * @return void
+ */
+function adminApiGuard(string $method, string|array $permissions): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== $method) jsonError(405, 'Methode non autorisee.');
+    if (!isLoggedIn()) jsonError(401, 'Acces refuse.');
+    if (!hasPermission($permissions)) jsonError(403, 'Permissions insuffisantes.');
+
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) {
+        jsonError(403, 'Token CSRF invalide.');
+    }
+}
+
 /**
  * Verifie les tentatives de connexion echouees.
  * Retourne true si le compte est bloque.
@@ -497,8 +812,12 @@ function resetLoginAttempts(string $identifiant): void
  */
 function formatDate(string $date): string
 {
-    $dt = new DateTime($date);
-    return $dt->format('d/m/Y \à H:i');
+    try {
+        $dt = new DateTime($date);
+        return $dt->format('d/m/Y \à H:i');
+    } catch (\Exception $e) {
+        return $date;
+    }
 }
 
 /**
@@ -579,4 +898,76 @@ function slugify(string $str): string
     $str = preg_replace('/[^a-z0-9-]/', '-', $str);
     $str = preg_replace('/-+/', '-', $str);
     return trim($str, '-');
+}
+
+// ---------------------------------------------------------------------------
+// CHAMPS DU FORMULAIRE DE CANDIDATURE (configurable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Retourne le champ type d'un champ de formulaire (nettoie).
+ *
+ * @param array $field
+ * @return string
+ */
+function fieldType(array $field): string
+{
+    $t = (string)($field['type'] ?? 'text');
+    if (!in_array($t, ['text', 'tel', 'email', 'textarea', 'select', 'file'], true)) {
+        return 'text';
+    }
+    return $t;
+}
+
+/**
+ * Liste des champs du formulaire de contact (defaut = comportement actuel).
+ * Le reglage site_settings.landing_form_fields peut les surcharger.
+ *
+ * Chaque champ :
+ *   cle        : colonne applications (nom, prenom, telephone, email,
+ *                entreprise, type, message) ou "pieces" (dossier), ou "custom_N".
+ *   type       : text | tel | email | textarea | select | file
+ *   libelle    : label affiche
+ *   placeholder: texte indicatif
+ *   obligatoire: bool
+ *   visible    : bool
+ *   options    : liste (select)
+ *
+ * @return array
+ */
+function getLandingFormFields(): array
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $defaults = [
+        ['cle' => 'nom',        'type' => 'text',     'libelle' => 'Nom',                'placeholder' => 'Votre nom',                        'obligatoire' => true,  'visible' => true,  'options' => []],
+        ['cle' => 'prenom',     'type' => 'text',     'libelle' => 'Prenom',             'placeholder' => 'Votre prenom',                     'obligatoire' => false, 'visible' => true,  'options' => []],
+        ['cle' => 'telephone',  'type' => 'tel',      'libelle' => 'Telephone',          'placeholder' => '+237 6 XX XX XX XX',                'obligatoire' => true,  'visible' => true,  'options' => []],
+        ['cle' => 'email',      'type' => 'email',    'libelle' => 'Email',              'placeholder' => 'vous@exemple.com',                  'obligatoire' => false, 'visible' => true,  'options' => []],
+        ['cle' => 'entreprise', 'type' => 'text',     'libelle' => 'Entreprise',         'placeholder' => 'Nom de votre entreprise',           'obligatoire' => false, 'visible' => true,  'options' => []],
+        ['cle' => 'type',       'type' => 'select',   'libelle' => 'Type de demande',    'placeholder' => '',                                   'obligatoire' => true,  'visible' => true,  'options' => ['partenariat', 'recrutement']],
+        ['cle' => 'pieces',     'type' => 'file',     'libelle' => 'Dossier de candidature', 'placeholder' => '',                             'obligatoire' => true,  'visible' => true,  'options' => []],
+        ['cle' => 'message',    'type' => 'textarea', 'libelle' => 'Message',            'placeholder' => 'Decrivez brievement votre projet ou votre profil...', 'obligatoire' => false, 'visible' => true, 'options' => []],
+    ];
+
+    try {
+        $stmt = getDB()->prepare('SELECT valeur FROM site_settings WHERE cle = :cle LIMIT 1');
+        $stmt->execute([':cle' => 'landing_form_fields']);
+        $row = $stmt->fetch();
+        if ($row) {
+            $decoded = json_decode($row['valeur'], true);
+            if (is_array($decoded)) {
+                $cache = $decoded;
+                return $cache;
+            }
+        }
+    } catch (PDOException $e) {
+        // On reste sur les valeurs par defaut
+    }
+
+    $cache = $defaults;
+    return $cache;
 }

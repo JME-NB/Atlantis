@@ -13,9 +13,13 @@
  * ============================================================================
  */
 
-// --- Mode developpement (a desactiver en production) ---
+// --- Environnement (dev par defaut, passer a 'production' en ligne) ---
+$appEnv = getenv('APP_ENV') ?: 'dev';
+define('APP_ENV', $appEnv);
+
+// --- Affichage des erreurs (actif en dev, desactive en production) ---
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
+ini_set('display_errors', $appEnv === 'production' ? '0' : '1');
 
 // --- Chemin racine du projet (absolu, sur disque) ---
 define('ROOT_PATH', dirname(__DIR__));
@@ -40,7 +44,22 @@ define('LOGIN_LOCKOUT_TIME', 900);          // Duree du blocage en secondes (15 
 define('SITE_NAME', 'ATLANTIS');
 define('SITE_DESC', 'Centre d\'appel & relation client');
 
-// --- "Se souvenir de moi" (cookie signe HMAC) ---
-define('APP_SECRET', '02501dae012b02b7add78d190ee663142b2d87d73642e0be4f24efb4faf88fd1'); // Cle HMAC (a garder secrete)
+// --- Pieces jointes (demandes publiques) ---
+define('MAX_PIECES_PAR_DEMANDE', 6);             // Nb max de pieces par demande
+define('MAX_TAILLE_PIECE', 5 * 1024 * 1024);     // 5 Mo max par piece
+
+// --- Signature du cookie et des liens d'apercu (obligatoire en production) ---
+// En production (APP_ENV=production) le secret DOIT venir de l'environnement :
+// sans lui l'application refusera de demarrer (fail-closed) afin d'eviter
+// qu'un secret faible et commite ne signe les cookies remember-me et les
+// liens d'apercu. En dev le fallback ci-dessous est conserve pour la simplicite.
+if (($appEnv === 'production') && !getenv('APP_SECRET')) {
+    http_response_code(500);
+    exit('ERREUR CONFIGURATION : variable APP_SECRET manquante. Definissez-la dans l\'environnement de production.');
+}
+define('APP_SECRET', getenv('APP_SECRET') ?: '02501dae012b02b7add78d190ee663142b2d87d73642e0be4f24efb4faf88fd1');
+
+// --- Signature des liens d'apercu de design (?preview=ID&sig=...) ---
+define('APP_PREVIEW_KEY', 'atlantis-preview-' . APP_SECRET); // Derive de APP_SECRET (a garder secrete)
 define('REMEMBER_COOKIE', 'atlantis_remember');
 define('REMEMBER_COOKIE_LIFETIME', 2592000); // 30 jours en secondes

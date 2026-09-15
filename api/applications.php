@@ -9,7 +9,9 @@
  *   GET    ?action=list       (admin/gestionnaire)
  *   GET    ?action=detail&id= (admin/gestionnaire)
  *   POST   ?action=update_status&id= (admin/gestionnaire)
- *   DELETE ?action=delete&id= (admin/gestionnaire)
+ *   DELETE ?action=delete&id= (admin/gestionnaire) -> archive (soft delete)
+ *   DELETE ?action=permanent_delete&id= (admin uniquement)
+ *   POST   ?action=restore&id= (admin uniquement)
  * ============================================================================
  */
 
@@ -17,7 +19,6 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/csrf.php';
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
-$method = $_SERVER['REQUEST_METHOD'];
 
 // ---------------------------------------------------------------------------
 // ROUTAGE
@@ -38,6 +39,12 @@ switch ($action) {
     case 'delete':
         handleDelete();
         break;
+    case 'permanent_delete':
+        handlePermanentDelete();
+        break;
+    case 'restore':
+        handleRestore();
+        break;
     case 'upload_piece':
         handleUploadPiece();
         break;
@@ -57,51 +64,112 @@ function handleCreate(): void
         jsonError(405, 'Methode non autorisee.');
     }
 
-    $nom        = clean($_POST['nom'] ?? '');
-    $prenom     = clean($_POST['prenom'] ?? '');
-    $telephone  = cleanRaw($_POST['telephone'] ?? '');
-    $email      = cleanRaw($_POST['email'] ?? '');
-    $entreprise = clean($_POST['entreprise'] ?? '');
-    $type       = $_POST['type'] ?? '';
-    $message    = clean($_POST['message'] ?? '');
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) {
+        jsonError(403, 'Token CSRF invalide.');
+    }
 
     $pieceTokens = $_POST['pieces'] ?? [];
     if (!is_array($pieceTokens)) $pieceTokens = [];
     $pieceTokens = array_values(array_map('strval', $pieceTokens));
     $pieceTokens = array_filter($pieceTokens, fn($t) => $t !== '');
-    $pieceTokens = array_slice($pieceTokens, 0, 6);
+    $pieceTokens = array_slice($pieceTokens, 0, MAX_PIECES_PAR_DEMANDE);
+
+    // --- Champs configures (reglage landing_form_fields, defaut = actuel) ---
+    $fields = getLandingFormFields();
+
+    $piecesVisible  = true;
+    $piecesRequired = true;
+    foreach ($fields as $f) {
+        if (($f['cle'] ?? '') === 'pieces') {
+            $piecesVisible  = !empty($f['visible']);
+            $piecesRequired = !empty($f['obligatoire']);
+        }
+    }
 
     $errors = [];
 
-    if ($nom === '') {
-        $errors['nom'] = 'Le nom est obligatoire.';
-    } elseif (mb_strlen($nom) > 100) {
-        $errors['nom'] = 'Le nom est trop long (100 caracteres max).';
-    }
-
-    if ($telephone === '') {
-        $errors['telephone'] = 'Le numero de telephone est obligatoire.';
-    } elseif (!isValidPhone($telephone)) {
-        $errors['telephone'] = 'Le numero de telephone semble invalide.';
-    }
-
-    if ($email !== '' && !isValidEmail($email)) {
-        $errors['email'] = 'L\'adresse email semble invalide.';
-    }
-
-    $allowedTypes = ['partenariat', 'recrutement'];
-    if (!in_array($type, $allowedTypes, true)) {
-        $errors['type'] = 'Veuillez selectionner un type de candidature.';
-    }
-
-    if (mb_strlen($message) > 5000) {
-        $errors['message'] = 'Le message est trop long (5000 caracteres max).';
-    }
-
-    if (count($pieceTokens) < 1) {
+    // --- Validation des pieces (dossier de candidature) ---
+    if ($piecesVisible && $piecesRequired && count($pieceTokens) < 1) {
         $errors['pieces'] = 'Le dossier de candidature est obligatoire (ajoutez au moins une piece jointe).';
-    } elseif (count($pieceTokens) > 6) {
+    } elseif (count($pieceTokens) > MAX_PIECES_PAR_DEMANDE) {
         $errors['pieces'] = 'Maximum 6 pieces jointes autorisees.';
+    }
+
+    // --- Validation des champs (seuls les champs visibles sont valides) ---
+    $colValues   = []; // colonnes applications (built-in)
+    $customValues = []; // champs personnalises (custom_*)
+
+    foreach ($fields as $field) {
+        if (empty($field['visible'])) continue;
+
+        $cle      = (string)($field['cle'] ?? '');
+        $libelle  = (string)($field['libelle'] ?? $cle);
+        $type     = fieldType($field);
+        $obligato = !empty($field['obligatoire']);
+
+        if ($cle === 'pieces') continue; // traite ci-dessus
+
+        $raw = $_POST[$cle] ?? '';
+        if (!is_string($raw)) $raw = '';
+
+        if ($type === 'text' || $type === 'textarea' || $type === 'select') {
+            $val = cleanRaw($raw);
+        } else {
+            $val = cleanRaw($raw);
+        }
+
+        if ($obligato && $val === '') {
+            $errors[$cle] = 'Le champ « ' . $libelle . ' » est obligatoire.';
+            continue;
+        }
+        if ($val === '') {
+            if (isset($colValues[$cle])) unset($colValues[$cle]);
+            continue;
+        }
+
+        switch ($type) {
+            case 'email':
+                if (!isValidEmail($val)) {
+                    $errors[$cle] = 'Le champ « ' . $libelle . ' » doit contenir une adresse email valide.';
+                    continue 2;
+                }
+                break;
+            case 'tel':
+                if (!isValidPhone($val)) {
+                    $errors[$cle] = 'Le champ « ' . $libelle . ' » doit contenir un numero de telephone valide.';
+                    continue 2;
+                }
+                break;
+            case 'select':
+                $options = $field['options'] ?? [];
+                $ok = empty($options) || in_array($val, array_map('strval', $options), true);
+                if ($cle === 'type') {
+                    // La colonne applications.type est un ENUM fixe
+                    $ok = $ok && in_array($val, ['partenariat', 'recrutement'], true);
+                }
+                if (!$ok) {
+                    $errors[$cle] = 'Veuillez selectionner une valeur valide pour le champ « ' . $libelle . ' ».';
+                    continue 2;
+                }
+                break;
+        }
+
+        // Contraintes specifiques aux colonnes existantes
+        if ($cle === 'nom' && mb_strlen($val) > 100) {
+            $errors['nom'] = 'Le nom est trop long (100 caracteres max).';
+            continue;
+        }
+        if ($cle === 'message' && mb_strlen($val) > 5000) {
+            $errors['message'] = 'Le message est trop long (5000 caracteres max).';
+            continue;
+        }
+
+        if (in_array($cle, ['nom', 'prenom', 'telephone', 'email', 'entreprise', 'type', 'message'], true)) {
+            $colValues[$cle] = $val;
+        } else {
+            $customValues[$cle] = $val;
+        }
     }
 
     if (!empty($errors)) {
@@ -114,26 +182,36 @@ function handleCreate(): void
         // Verifier que chaque jeton de piece existe, est "pending" et appartient a la session
         ensureSession();
         $sessionHash = hash('sha256', session_id());
-        $ph       = [];
+        $ph          = [];
         $validateParams = [':session_hash' => $sessionHash];
-        foreach ($pieceTokens as $i => $tok) {
-            $key = ':t' . $i;
-            $ph[] = $key;
-            $validateParams[$key] = $tok;
+        if (!empty($pieceTokens)) {
+            foreach ($pieceTokens as $i => $tok) {
+                $key = ':t' . $i;
+                $ph[] = $key;
+                $validateParams[$key] = $tok;
+            }
+            $stmtP = $pdo->prepare(
+                'SELECT id FROM application_pieces
+                 WHERE token IN (' . implode(', ', $ph) . ')
+                   AND session_hash = :session_hash
+                   AND statut = "pending"
+                   AND application_id IS NULL'
+            );
+            $stmtP->execute($validateParams);
+            if ($stmtP->rowCount() !== count($pieceTokens)) {
+                jsonError(400, 'Certaines pieces jointes sont invalides ou expirees.', [
+                    'errors' => ['pieces' => 'Certaines pieces jointes sont invalides ou expirees. Rechargez la page et reessayez.'],
+                ]);
+            }
         }
-        $stmtP = $pdo->prepare(
-            'SELECT id FROM application_pieces
-             WHERE token IN (' . implode(', ', $ph) . ')
-               AND session_hash = :session_hash
-               AND statut = "pending"
-               AND application_id IS NULL'
-        );
-        $stmtP->execute($validateParams);
-        if ($stmtP->rowCount() !== count($pieceTokens)) {
-            jsonError(400, 'Certaines pieces jointes sont invalides ou expirees.', [
-                'errors' => ['pieces' => 'Certaines pieces jointes sont invalides ou expirees. Rechargez la page et reessayez.'],
-            ]);
-        }
+
+        $nom        = $colValues['nom'] ?? '';
+        $prenom     = $colValues['prenom'] ?? '';
+        $telephone  = $colValues['telephone'] ?? '';
+        $email      = $colValues['email'] ?? '';
+        $entreprise = $colValues['entreprise'] ?? '';
+        $type       = $colValues['type'] ?? 'partenariat';
+        $message    = $colValues['message'] ?? '';
 
         $stmt = $pdo->prepare(
             'INSERT INTO applications (nom, prenom, telephone, email, entreprise, type, message, statut)
@@ -153,16 +231,29 @@ function handleCreate(): void
         $newId = $pdo->lastInsertId();
 
         // Attacher les pieces a la candidature
-        $linkParams = [':aid' => $newId];
-        foreach ($pieceTokens as $i => $tok) {
-            $linkParams[':t' . $i] = $tok;
+        if (!empty($pieceTokens)) {
+            $linkParams = [':aid' => $newId];
+            foreach ($pieceTokens as $i => $tok) {
+                $linkParams[':t' . $i] = $tok;
+            }
+            $stmtL = $pdo->prepare(
+                'UPDATE application_pieces
+                 SET application_id = :aid, statut = "recu"
+                 WHERE token IN (' . implode(', ', $ph) . ')'
+            );
+            $stmtL->execute($linkParams);
         }
-        $stmtL = $pdo->prepare(
-            'UPDATE application_pieces
-             SET application_id = :aid, statut = "recu"
-             WHERE token IN (' . implode(', ', $ph) . ')'
-        );
-        $stmtL->execute($linkParams);
+
+        // Sauvegarder les champs personnalises
+        if (!empty($customValues)) {
+            $insC = $pdo->prepare(
+                'INSERT INTO application_champs_personnalises (application_id, champ, valeur)
+                 VALUES (:aid, :champ, :valeur)'
+            );
+            foreach ($customValues as $cleC => $valC) {
+                $insC->execute([':aid' => $newId, ':champ' => $cleC, ':valeur' => $valC]);
+            }
+        }
 
         // Nettoyage opportuniste des pieces en attente expirees ( +24h )
         cleanupExpiredPieces();
@@ -174,9 +265,18 @@ function handleCreate(): void
             'Nouvelle demande recue : ' . $nom . ' (' . $type . ') avec ' . count($pieceTokens) . ' piece(s) jointe(s)'
         );
 
+        notify(
+            'ticket_nouveau',
+            'Nouvelle demande n°' . $newId . ' : ' . $nom . ' ' . $prenom . ' (' . $type . ')',
+            ['admin', 'gestionnaire'],
+            'application',
+            (int)$newId,
+            false
+        );
+
         jsonSuccess('Merci pour votre demande ! Votre demande a bien ete transmise a l\'equipe ATLANTIS. Nous vous contacterons prochainement.');
     } catch (PDOException $e) {
-        error_log('Create application error: ' . $e->getMessage());
+        logError('ERROR', 'Create application error: ' . $e->getMessage(), 'api/applications.php', 275);
         jsonError(500, 'Une erreur interne est survenue. Veuillez reessayer plus tard.');
     }
 }
@@ -190,13 +290,18 @@ function handleUploadPiece(): void
         jsonError(405, 'Methode non autorisee.');
     }
 
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) {
+        jsonError(403, 'Token CSRF invalide.');
+    }
+
     if (!isset($_FILES['piece']) || $_FILES['piece']['error'] !== UPLOAD_ERR_OK) {
         jsonError(400, 'Aucun fichier recu ou erreur d\'upload.');
     }
 
     $file = $_FILES['piece'];
 
-    if ($file['size'] <= 0 || $file['size'] > 5 * 1024 * 1024) {
+    if ($file['size'] <= 0 || $file['size'] > MAX_TAILLE_PIECE) {
         jsonError(400, 'Fichier trop volumineux. Taille maximale : 5 Mo.');
     }
 
@@ -234,6 +339,12 @@ function handleUploadPiece(): void
         jsonError(500, 'Erreur lors de la sauvegarde du fichier.');
     }
 
+    $actualSize = filesize($filePath);
+    if ($actualSize === false || $actualSize > MAX_TAILLE_PIECE) {
+        @unlink($filePath);
+        jsonError(400, 'Fichier trop volumineux. Taille maximale : 5 Mo.');
+    }
+
     try {
         $pdo = getDB();
         $stmt = $pdo->prepare(
@@ -252,7 +363,7 @@ function handleUploadPiece(): void
         ]);
     } catch (PDOException $e) {
         @unlink($filePath);
-        error_log('Upload piece error: ' . $e->getMessage());
+        logError('ERROR', 'Upload piece error: ' . $e->getMessage(), 'api/applications.php', 351);
         jsonError(500, 'Une erreur interne est survenue.');
     }
 
@@ -352,7 +463,7 @@ function cleanupExpiredPieces(): void
             $del->execute([':id' => $row['id']]);
         }
     } catch (PDOException $e) {
-        error_log('Cleanup pieces failed: ' . $e->getMessage());
+        logError('ERROR', 'Cleanup pieces failed: ' . $e->getMessage(), 'api/applications.php', 451);
     }
 }
 
@@ -486,7 +597,25 @@ function handleDetail(): void
     $stmtP->execute([':id' => $id]);
     $pieces = $stmtP->fetchAll();
 
-    jsonSuccess('Demande trouvee.', ['item' => $item, 'pieces' => $pieces]);
+    // Champs personnalises (champs libres du formulaire) avec leur libelle
+    $stmtC = $pdo->prepare(
+        'SELECT champ, valeur FROM application_champs_personnalises
+         WHERE application_id = :id
+         ORDER BY id ASC'
+    );
+    $stmtC->execute([':id' => $id]);
+    $champsPerso = $stmtC->fetchAll();
+
+    $labels = [];
+    foreach (getLandingFormFields() as $f) {
+        $labels[$f['cle'] ?? ''] = $f['libelle'] ?? ($f['cle'] ?? '');
+    }
+    foreach ($champsPerso as &$cp) {
+        $cp['libelle'] = $labels[$cp['champ']] ?? $cp['champ'];
+    }
+    unset($cp);
+
+    jsonSuccess('Demande trouvee.', ['item' => $item, 'pieces' => $pieces, 'champs_personnalises' => $champsPerso]);
 }
 
 // ---------------------------------------------------------------------------
@@ -530,8 +659,8 @@ function handleUpdateStatus(): void
     try {
         $pdo = getDB();
 
-        // Recuperer l'ancien statut
-        $stmt = $pdo->prepare('SELECT statut FROM applications WHERE id = :id LIMIT 1');
+        // Recuperer l'ancien statut et l'identite du candidat
+        $stmt = $pdo->prepare('SELECT statut, nom, prenom FROM applications WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $id]);
         $current = $stmt->fetch();
 
@@ -549,15 +678,23 @@ function handleUpdateStatus(): void
             'Statut change de "' . $current['statut'] . '" vers "' . $statut . '"'
         );
 
+        notify(
+            'ticket_statut',
+            'Demande n°' . $id . ' (' . $current['nom'] . ') : "' . $current['statut'] . '" -> "' . $statut . '" par ' . getAdminDisplayName(),
+            ['admin', 'gestionnaire'],
+            'application',
+            $id
+        );
+
         jsonSuccess('Statut mis a jour avec succes.');
     } catch (PDOException $e) {
-        error_log('Update status error: ' . $e->getMessage());
+        logError('ERROR', 'Update status error: ' . $e->getMessage(), 'api/applications.php', 676);
         jsonError(500, 'Erreur interne. Veuillez reessayer.');
     }
 }
 
 // ---------------------------------------------------------------------------
-// DELETE (admin/gestionnaire)
+// DELETE -> ARCHIVE (soft delete) (admin/gestionnaire)
 // ---------------------------------------------------------------------------
 function handleDelete(): void
 {
@@ -570,6 +707,71 @@ function handleDelete(): void
     }
 
     if (!hasPermission(['admin', 'gestionnaire'])) {
+        jsonError(403, 'Permissions insuffisantes.');
+    }
+
+    // CSRF
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) {
+        jsonError(403, 'Token CSRF invalide. Veuillez recharger la page.');
+    }
+
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if (!$id || $id <= 0) {
+        jsonError(400, 'Identifiant invalide.');
+    }
+
+    try {
+        $pdo = getDB();
+
+        $stmt = $pdo->prepare('SELECT nom, prenom, type FROM applications WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $current = $stmt->fetch();
+
+        if (!$current) {
+            jsonError(404, 'Demande introuvable.');
+        }
+
+        // Soft delete : passage au statut "archive" (les fichiers sont conserves)
+        $stmt = $pdo->prepare('UPDATE applications SET statut = "archive", updated_at = NOW() WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+
+        logAudit(
+            'delete_application',
+            'application',
+            $id,
+            'Demande archivee : ' . $current['nom'] . ' ' . ($current['prenom'] ?? '') . ' (' . $current['type'] . ')'
+        );
+
+        notify(
+            'ticket_supprime',
+            'Demande n°' . $id . ' de ' . $current['nom'] . ' (' . $current['type'] . ') archivee par ' . getAdminDisplayName(),
+            ['admin', 'gestionnaire'],
+            'application',
+            $id
+        );
+
+        jsonSuccess('La demande a ete archivee.');
+    } catch (PDOException $e) {
+        logError('ERROR', 'Delete application error: ' . $e->getMessage(), 'api/applications.php', 741);
+        jsonError(500, 'Erreur interne. Veuillez reessayer.');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// PERMANENT DELETE (admin uniquement - suppression definitive)
+// ---------------------------------------------------------------------------
+function handlePermanentDelete(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
+        jsonError(405, 'Methode non autorisee.');
+    }
+
+    if (!isLoggedIn()) {
+        jsonError(401, 'Acces refuse.');
+    }
+
+    if (!hasPermission('admin')) {
         jsonError(403, 'Permissions insuffisantes.');
     }
 
@@ -609,15 +811,86 @@ function handleDelete(): void
         $stmt->execute([':id' => $id]);
 
         logAudit(
-            'delete_application',
+            'permanent_delete',
             'application',
             $id,
-            'Demande supprimee : ' . $current['nom'] . ' ' . ($current['prenom'] ?? '') . ' (' . $current['type'] . ')'
+            'Demande supprimee definitivement : ' . $current['nom'] . ' ' . ($current['prenom'] ?? '') . ' (' . $current['type'] . ')'
         );
 
-        jsonSuccess('La demande a ete supprimee.');
+        notify(
+            'ticket_supprime',
+            'Demande n°' . $id . ' de ' . $current['nom'] . ' (' . $current['type'] . ') supprimee definitivement par ' . getAdminDisplayName(),
+            ['admin', 'gestionnaire'],
+            'application',
+            $id
+        );
+
+        jsonSuccess('La demande a ete supprimee definitivement.');
     } catch (PDOException $e) {
-        error_log('Delete application error: ' . $e->getMessage());
+        logError('ERROR', 'Permanent delete application error: ' . $e->getMessage(), 'api/applications.php', 815);
+        jsonError(500, 'Erreur interne. Veuillez reessayer.');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RESTORE (admin uniquement - restauration depuis les archivees)
+// ---------------------------------------------------------------------------
+function handleRestore(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        jsonError(405, 'Methode non autorisee.');
+    }
+
+    if (!isLoggedIn()) {
+        jsonError(401, 'Acces refuse.');
+    }
+
+    if (!hasPermission('admin')) {
+        jsonError(403, 'Permissions insuffisantes.');
+    }
+
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) {
+        jsonError(403, 'Token CSRF invalide. Veuillez recharger la page.');
+    }
+
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if (!$id || $id <= 0) {
+        jsonError(400, 'Identifiant invalide.');
+    }
+
+    try {
+        $pdo = getDB();
+
+        $stmt = $pdo->prepare('SELECT nom, prenom, type FROM applications WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $current = $stmt->fetch();
+
+        if (!$current) {
+            jsonError(404, 'Demande introuvable.');
+        }
+
+        $stmt = $pdo->prepare('UPDATE applications SET statut = "en_attente", updated_at = NOW() WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+
+        logAudit(
+            'restore_application',
+            'application',
+            $id,
+            'Demande restauree : ' . $current['nom'] . ' ' . ($current['prenom'] ?? '') . ' (' . $current['type'] . ')'
+        );
+
+        notify(
+            'ticket_statut',
+            'Demande n°' . $id . ' de ' . $current['nom'] . ' (' . $current['type'] . ') restauree par ' . getAdminDisplayName(),
+            ['admin', 'gestionnaire'],
+            'application',
+            $id
+        );
+
+        jsonSuccess('La demande a ete restauree.');
+    } catch (PDOException $e) {
+        logError('ERROR', 'Restore application error: ' . $e->getMessage(), 'api/applications.php', 878);
         jsonError(500, 'Erreur interne. Veuillez reessayer.');
     }
 }

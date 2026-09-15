@@ -300,6 +300,11 @@
 
     function updateSubmitState() {
         var btn = document.getElementById('submitBtn');
+        if (!btn) return;
+        if (typeof window.FORM_PIECES_REQUIRED !== 'undefined' && !window.FORM_PIECES_REQUIRED) {
+            btn.disabled = false;
+            return;
+        }
         var keys = Object.keys(pieces);
         var ready = 0;
         var busy = 0;
@@ -410,6 +415,7 @@
         });
 
         xhr.open('POST', BASE_URL + '/api/applications.php?action=upload_piece');
+        xhr.setRequestHeader('X-CSRF-TOKEN', (typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : ''));
         xhr.send(fd);
     }
 
@@ -512,22 +518,37 @@
             hideFeedback('formFeedback');
 
             var errors = {};
-            var nom = contactForm.nom.value.trim();
-            var telephone = contactForm.telephone.value.trim();
-            var type = contactForm.type.value;
 
-            if (!nom) errors.nom = 'Le nom est obligatoire.';
-            if (!telephone) errors.telephone = 'Le numero de telephone est obligatoire.';
-            else if (!/^[0-9+\-\s()]{8,20}$/.test(telephone)) errors.telephone = 'Veuillez renseigner un numero de telephone valide.';
-            if (!type) errors.type = 'Veuillez selectionner un type de candidature.';
+            contactForm.querySelectorAll('[name]').forEach(function(el) {
+                var cle = el.name;
+                if (cle === 'pieces' || cle === '') return;
+                var val = (el.value || '').trim();
+                var required = el.hasAttribute('data-required');
+                var dataType = el.getAttribute('data-type') || (el.tagName === 'SELECT' ? 'select' : '');
 
+                if (required && val === '') {
+                    var labelEl = el.closest('.form-group');
+                    labelEl = labelEl ? labelEl.querySelector('label') : null;
+                    var libelle = labelEl ? labelEl.textContent.replace('*', '').trim() : cle;
+                    errors[cle] = 'Le champ « ' + libelle + ' » est obligatoire.';
+                    return;
+                }
+                if (val === '') return;
+                if (dataType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                    errors[cle] = 'Veuillez renseigner une adresse email valide.';
+                } else if (dataType === 'tel' && !/^[0-9+\-\s()]{8,20}$/.test(val)) {
+                    errors[cle] = 'Veuillez renseigner un numero de telephone valide.';
+                }
+            });
+
+            var piecesRequired = typeof window.FORM_PIECES_REQUIRED === 'undefined' ? true : window.FORM_PIECES_REQUIRED;
             var readyKeys = [];
             var busyKeys = [];
             Object.keys(pieces).forEach(function(k) {
                 if (pieces[k].status === 'ready') readyKeys.push(k);
                 if (pieces[k].status === 'uploading') busyKeys.push(k);
             });
-            if (readyKeys.length === 0) {
+            if (piecesRequired && readyKeys.length === 0) {
                 errors.pieces = busyKeys.length > 0
                     ? 'Veuillez patienter : le chargement des fichiers est en cours.'
                     : 'Le dossier de candidature est obligatoire : ajoutez au moins une piece jointe.';
@@ -552,6 +573,7 @@
 
             fetch(BASE_URL + '/api/applications.php?action=create', {
                 method: 'POST',
+                headers: { 'X-CSRF-TOKEN': (typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '') },
                 body: formData
             })
             .then(function(res) { return res.json(); })

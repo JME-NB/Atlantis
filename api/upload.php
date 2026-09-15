@@ -48,6 +48,9 @@ if (($_GET['action'] ?? '') === 'remove') {
     } elseif ($type === 'section' && $sectionId > 0) {
         $stmt = $pdo->prepare('UPDATE site_sections SET image_url = NULL, updated_by = :uid, updated_at = NOW() WHERE id = :id');
         $stmt->execute([':uid' => $userId, ':id' => $sectionId]);
+    } elseif ($type === 'section_bg' && $sectionId > 0) {
+        $stmt = $pdo->prepare('UPDATE site_sections SET fond_image_url = NULL, updated_by = :uid, updated_at = NOW() WHERE id = :id');
+        $stmt->execute([':uid' => $userId, ':id' => $sectionId]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Cible de suppression invalide.']);
         exit;
@@ -83,10 +86,12 @@ if (!isset($allowedTypes[$mimeType])) {
 }
 
 $maxSizes = [
-    'logo'     => 2 * 1024 * 1024,
-    'banniere' => 4 * 1024 * 1024,
-    'login_bg' => 4 * 1024 * 1024,
-    'section'  => 3 * 1024 * 1024,
+    'logo'       => 2 * 1024 * 1024,
+    'banniere'   => 4 * 1024 * 1024,
+    'login_bg'   => 4 * 1024 * 1024,
+    'section'    => 3 * 1024 * 1024,
+    'section_bg' => 3 * 1024 * 1024,
+    'rubrique'   => 3 * 1024 * 1024,
 ];
 
 $maxSize = $maxSizes[$type] ?? 3 * 1024 * 1024;
@@ -97,10 +102,12 @@ if ($_FILES['image']['size'] > $maxSize) {
 }
 
 $subdirs = [
-    'logo'     => 'logos',
-    'banniere' => 'hero',
-    'login_bg' => 'hero',
-    'section'  => 'sections',
+    'logo'       => 'logos',
+    'banniere'   => 'hero',
+    'login_bg'   => 'hero',
+    'section'    => 'sections',
+    'section_bg' => 'sections',
+    'rubrique'   => 'rubriques',
 ];
 
 $subdir = $subdirs[$type] ?? 'sections';

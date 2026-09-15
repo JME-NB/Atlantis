@@ -5,6 +5,28 @@
 /* --- RESET & VARIABLES --- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Ruban d'apercu d'un design non publie */
+.preview-ribbon {
+    position: relative;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    background: #101828;
+    color: #ec4899;
+    font-size: 0.85rem;
+}
+
+.preview-ribbon strong { color: #ffffff; }
+
+.preview-ribbon a {
+    color: #f472b6;
+    text-decoration: underline;
+}
+
 :root {
     --primary: #0a1628;
     --secondary: #00b4d8;
@@ -309,7 +331,7 @@ a { color: inherit; text-decoration: none; }
 
 .hero-title {
     font-family: var(--font-titre);
-    font-size: 2.6rem;
+    font-size: var(--taille-hero-titre, 2.6rem);
     font-weight: 600;
     margin-bottom: 18px;
     line-height: 1.3;
@@ -408,7 +430,7 @@ a { color: inherit; text-decoration: none; }
 
 .section-title {
     font-family: var(--font-titre);
-    font-size: 3.4rem;
+    font-size: var(--taille-titre-section, 3.4rem);
     font-weight: 700;
     line-height: 1.2;
     margin-bottom: 16px;
@@ -417,9 +439,23 @@ a { color: inherit; text-decoration: none; }
 .title-light { color: var(--white); }
 
 .section-text {
-    font-size: 1.5rem;
+    font-size: var(--taille-corps, 1.5rem);
     color: var(--text-light);
     line-height: 1.7;
+}
+
+/* Images porteuses des visualisations (icone ou image d'une rubrique) */
+.value-icon, .service-icon, .secteur-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.value-icon-img, .service-icon-img, .secteur-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
 }
 
 .section-dark .section-text { color: rgba(255,255,255,0.7); }
@@ -815,6 +851,10 @@ a { color: inherit; text-decoration: none; }
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+}
+
+.form-row-single {
+    grid-template-columns: 1fr;
 }
 
 .form-group { display: flex; flex-direction: column; gap: 6px; }

@@ -36,6 +36,55 @@
     });
 
     // =========================================================================
+    // MENU UTILISATEUR (sidebar-user -> dropdown)
+    // =========================================================================
+    var userBtn = document.getElementById('sidebarUserBtn');
+    var userMenu = document.getElementById('userMenu');
+
+    if (userBtn && userMenu) {
+        var closeUserMenu = function() {
+            userMenu.hidden = true;
+            userBtn.setAttribute('aria-expanded', 'false');
+        };
+
+        userBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var hidden = userMenu.hidden;
+            closeUserMenu();
+            if (hidden) {
+                userMenu.hidden = false;
+                userBtn.setAttribute('aria-expanded', 'true');
+                repositionUserMenu();
+            }
+        });
+
+        userMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        document.addEventListener('click', function() {
+            closeUserMenu();
+        });
+
+        function repositionUserMenu() {
+            if (userMenu.hidden) return;
+            var btnRect = userBtn.getBoundingClientRect();
+            userMenu.style.left = btnRect.left + btnRect.width + 8 + 'px';
+            if (btnRect.bottom + userMenu.offsetHeight > window.innerHeight) {
+                userMenu.style.top = 'auto';
+                userMenu.style.bottom = '70px';
+            } else {
+                userMenu.style.top = btnRect.top + 'px';
+                userMenu.style.bottom = 'auto';
+            }
+        }
+
+        userBtn.addEventListener('mouseenter', repositionUserMenu);
+        window.addEventListener('resize', repositionUserMenu);
+        window.addEventListener('scroll', repositionUserMenu, { capture: true, passive: true });
+    }
+
+    // =========================================================================
     // LOGIN
     // =========================================================================
     var loginForm = document.getElementById('loginForm');
@@ -92,7 +141,11 @@
 
             var fd = new FormData(changePwForm);
             fd.append('force', '1');
-            fetch(BASE_URL + '/api/auth.php?action=change_password', { method: 'POST', body: fd })
+            fetch(BASE_URL + '/api/auth.php?action=change_password', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
+                body: fd
+            })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
@@ -157,15 +210,15 @@
                 html += '<td>' + escHtml(app.prenom || '-') + '</td>';
                 html += '<td>' + escHtml(app.telephone) + '</td>';
                 html += '<td>' + escHtml(app.entreprise || '-') + '</td>';
-                html += '<td><span class="badge badge-' + app.type + '">' + typeLabel(app.type) + '</span></td>';
-                html += '<td><span class="badge badge-' + statutClass(app.statut) + '">' + statutLabel(app.statut) + '</span></td>';
+                html += '<td><span class="badge badge-' + typeClass(app.type) + '">' + escHtml(typeLabel(app.type)) + '</span></td>';
+                html += '<td><span class="badge badge-' + statutClass(app.statut) + '">' + escHtml(statutLabel(app.statut)) + '</span></td>';
                 html += '<td>' + (parseInt(app.pieces_count, 10) > 0
-                    ? '<button class="btn btn-sm btn-outline detail-btn" data-id="' + app.id + '">' + app.pieces_count + ' fichier(s)</button>'
+                    ? '<button class="btn btn-sm btn-outline detail-btn" data-id="' + safeId(app.id) + '">' + app.pieces_count + ' fichier(s)</button>'
                     : '<span class="text-muted">-</span>') + '</td>';
                 html += '<td>' + formatDate(app.created_at) + '</td>';
                 html += '<td>';
-                html += '<button class="btn btn-sm btn-outline detail-btn" data-id="' + app.id + '">Voir</button> ';
-                html += '<button class="btn btn-sm btn-danger delete-btn" data-id="' + app.id + '" data-nom="' + escHtml(app.nom) + '">X</button>';
+                html += '<button class="btn btn-sm btn-outline detail-btn" data-id="' + safeId(app.id) + '">Voir</button> ';
+                html += '<button class="btn btn-sm btn-danger delete-btn" data-id="' + safeId(app.id) + '" data-nom="' + escHtml(app.nom) + '">X</button>';
                 html += '</td>';
                 html += '</tr>';
             });
@@ -189,7 +242,7 @@
             });
             applicationsBody.querySelectorAll('.delete-btn').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    if (confirm('Voulez-vous vraiment supprimer cette demande ? Cette action est irreversible.')) {
+                    if (confirm('Voulez-vous vraiment archiver cette demande ? Les donnees et les fichiers seront conserves. Seul un administrateur pourra la restaurer ou la supprimer definitivement.')) {
                         deleteApplication(this.dataset.id);
                     }
                 });
@@ -203,7 +256,6 @@
         if (searchInput) {
             searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
-                var val = this.value;
                 searchTimeout = setTimeout(function() { loadApplications(1); }, 300);
             });
         }
@@ -227,37 +279,61 @@
             document.getElementById('modalId').textContent = app.id;
 
             var html = '';
-            html += detailField('Nom', app.nom);
-            html += detailField('Prenom', app.prenom || '-');
-            html += detailField('Telephone', app.telephone);
-            html += detailField('Email', app.email || '-');
-            html += detailField('Entreprise', app.entreprise || '-');
-            html += detailField('Type', '<span class="badge badge-' + app.type + '">' + typeLabel(app.type) + '</span>');
-            html += detailField('Statut actuel', '<span class="badge badge-' + statutClass(app.statut) + '">' + statutLabel(app.statut) + '</span>');
-            html += detailField('Message', app.message || '-');
+            html += detailField('Nom', escHtml(app.nom));
+            html += detailField('Prenom', escHtml(app.prenom || '-'));
+            html += detailField('Telephone', escHtml(app.telephone));
+            html += detailField('Email', escHtml(app.email || '-'));
+            html += detailField('Entreprise', escHtml(app.entreprise || '-'));
+            html += detailField('Type', '<span class="badge badge-' + typeClass(app.type) + '">' + escHtml(typeLabel(app.type)) + '</span>');
+            html += detailField('Statut actuel', '<span class="badge badge-' + statutClass(app.statut) + '">' + escHtml(statutLabel(app.statut)) + '</span>');
+            if (data.champs_personnalises && data.champs_personnalises.length) {
+                data.champs_personnalises.forEach(function(cp) {
+                    html += detailField(escHtml(cp.libelle || cp.champ), escHtml(cp.valeur || '-'));
+                });
+            }
+            html += detailField('Message', escHtml(app.message || '-'));
             html += detailField('Dossier de candidature', piecesDetailHtml(data.pieces));
             html += detailField('Cree le', formatDate(app.created_at));
             html += detailField('Modifie le', formatDate(app.updated_at));
             document.getElementById('modalBody').innerHTML = html;
 
-            // Footer avec changement de statut
-            var statuses = ['en_attente', 'en_cours', 'valide', 'refuse', 'archive'];
-            var footerHtml = '<div style="display:flex;gap:8px;align-items:center;width:100%">';
-            footerHtml += '<select id="modalStatus" class="form-select" style="flex:1">';
-            statuses.forEach(function(s) {
-                footerHtml += '<option value="' + s + '"' + (app.statut === s ? ' selected' : '') + '>' + statutLabel(s) + '</option>';
-            });
-            footerHtml += '</select>';
-            footerHtml += '<button class="btn btn-primary" id="saveStatusBtn" data-id="' + app.id + '">Mettre a jour</button>';
-            footerHtml += '</div>';
+            // Footer avec changement de statut (ou actions archivees)
+            var footerHtml = '';
+            if (typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT === 'archive') {
+                footerHtml = '<div style="display:flex;gap:8px;align-items:center;width:100%">';
+                footerHtml += '<button class="btn btn-primary" id="restoreBtn" data-id="' + safeId(app.id) + '">Restaurer</button>';
+                footerHtml += '<button class="btn btn-danger" id="permanentDeleteBtn" data-id="' + safeId(app.id) + '">Supprimer definitivement</button>';
+                footerHtml += '</div>';
+            } else {
+                var statuses = ['en_attente', 'en_cours', 'valide', 'refuse', 'archive'];
+                footerHtml = '<div style="display:flex;gap:8px;align-items:center;width:100%">';
+                footerHtml += '<select id="modalStatus" class="form-select" style="flex:1">';
+                statuses.forEach(function(s) {
+                    footerHtml += '<option value="' + s + '"' + (app.statut === s ? ' selected' : '') + '>' + statutLabel(s) + '</option>';
+                });
+                footerHtml += '</select>';
+                footerHtml += '<button class="btn btn-primary" id="saveStatusBtn" data-id="' + safeId(app.id) + '">Mettre a jour</button>';
+                footerHtml += '</div>';
+            }
             document.getElementById('modalFooter').innerHTML = footerHtml;
 
             document.getElementById('detailModal').hidden = false;
 
-            document.getElementById('saveStatusBtn').addEventListener('click', function() {
-                var newStatut = document.getElementById('modalStatus').value;
-                updateStatus(this.dataset.id, newStatut);
-            });
+            if (typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT === 'archive') {
+                var restoreBtn = document.getElementById('restoreBtn');
+                var permDelBtn = document.getElementById('permanentDeleteBtn');
+                if (restoreBtn) restoreBtn.addEventListener('click', function() {
+                    restoreApplication(this.dataset.id);
+                });
+                if (permDelBtn) permDelBtn.addEventListener('click', function() {
+                    permanentDeleteApplication(this.dataset.id);
+                });
+            } else {
+                document.getElementById('saveStatusBtn').addEventListener('click', function() {
+                    var newStatut = document.getElementById('modalStatus').value;
+                    updateStatus(this.dataset.id, newStatut);
+                });
+            }
         });
     }
 
@@ -325,6 +401,47 @@
     }
 
     // =========================================================================
+    // RESTORE APPLICATION (from archivees)
+    // =========================================================================
+    function restoreApplication(id) {
+        fetch(BASE_URL + '/api/applications.php?action=restore&id=' + id, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showToast('Demande restauree.');
+                document.getElementById('detailModal').hidden = true;
+                _loadApps(currentApplicationsPage || 1);
+            } else {
+                showToast(data.message, true);
+            }
+        });
+    }
+
+    // =========================================================================
+    // PERMANENT DELETE APPLICATION (from archivees)
+    // =========================================================================
+    function permanentDeleteApplication(id) {
+        if (!confirm('Voulez-vous vraiment supprimer cette demande definitivement ? Cette action est irreversible et supprimera toutes les donnees y compris les fichiers joints.')) return;
+        fetch(BASE_URL + '/api/applications.php?action=permanent_delete&id=' + id, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showToast('Demande supprimee definitivement.');
+                document.getElementById('detailModal').hidden = true;
+                _loadApps(currentApplicationsPage || 1);
+            } else {
+                showToast(data.message, true);
+            }
+        });
+    }
+
+    // =========================================================================
     // USERS - LISTING
     // =========================================================================
     var usersBody = document.getElementById('usersBody');
@@ -352,16 +469,16 @@
                 html += '<td>#' + u.id + '</td>';
                 html += '<td>' + escHtml(u.identifiant) + '</td>';
                 html += '<td>' + escHtml(u.nom_complet) + '</td>';
-                html += '<td><span class="badge badge-' + roleBadge(u.role) + '">' + u.role + '</span></td>';
+                html += '<td><span class="badge badge-' + roleBadge(u.role) + '">' + escHtml(u.role) + '</span></td>';
                 html += '<td>' + (u.is_super_admin ? '<span class="badge badge-success">Oui</span>' : '-') + '</td>';
                 html += '<td><span class="badge badge-' + (u.statut_compte === 'actif' ? 'success' : 'danger') + '">' + u.statut_compte + '</span></td>';
                 html += '<td>' + (u.must_change_password ? '<span class="badge badge-warning">Oui</span>' : '-') + '</td>';
                 html += '<td>';
 
                 if (!u.is_super_admin) {
-                    html += '<button class="btn btn-sm btn-outline role-btn" data-id="' + u.id + '" data-name="' + escHtml(u.identifiant) + '" data-role="' + u.role + '">Role</button> ';
-                    html += '<button class="btn btn-sm btn-outline reset-btn" data-id="' + u.id + '" data-name="' + escHtml(u.identifiant) + '">Mdp</button> ';
-                    html += '<button class="btn btn-sm btn-danger delete-user-btn" data-id="' + u.id + '" data-name="' + escHtml(u.identifiant) + '">X</button>';
+                    html += '<button class="btn btn-sm btn-outline role-btn" data-id="' + safeId(u.id) + '" data-name="' + escHtml(u.identifiant) + '" data-role="' + escHtml(u.role) + '">Role</button> ';
+                    html += '<button class="btn btn-sm btn-outline reset-btn" data-id="' + safeId(u.id) + '" data-name="' + escHtml(u.identifiant) + '">Mdp</button> ';
+                    html += '<button class="btn btn-sm btn-danger delete-user-btn" data-id="' + safeId(u.id) + '" data-name="' + escHtml(u.identifiant) + '">X</button>';
                 } else {
                     html += '<em style="color:var(--text-muted)">Super Admin</em>';
                 }
@@ -537,7 +654,7 @@
 
         function renderAuditTable(items, page, pages) {
             if (!items || items.length === 0) {
-                auditBody.innerHTML = '<tr><td colspan="6" class="text-center">Aucune entree.</td></tr>';
+                auditBody.innerHTML = '<tr><td colspan="7" class="text-center">Aucune entree.</td></tr>';
                 return;
             }
 
@@ -550,9 +667,14 @@
                 html += '<td><span class="badge badge-' + actionBadge(log.action) + '">' + escHtml(log.action) + '</span></td>';
                 html += '<td>' + escHtml(log.details || '-') + '</td>';
                 html += '<td>' + escHtml(log.adresse_ip || '-') + '</td>';
+                html += '<td><button class="btn btn-sm btn-outline audit-detail-btn" data-id="' + safeId(log.id) + '">Voir</button></td>';
                 html += '</tr>';
             });
             auditBody.innerHTML = html;
+
+            auditBody.querySelectorAll('.audit-detail-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() { openAuditDetail(this.dataset.id); });
+            });
 
             var pag = document.getElementById('auditPagination');
             if (pag && pages > 1) {
@@ -583,97 +705,307 @@
     }
 
     // =========================================================================
-    // DESIGN - SAVE SETTINGS
+    // AUDIT - DETAIL MODAL
+    // =========================================================================
+    function openAuditDetail(id) {
+        var modal = document.getElementById('auditDetailModal');
+        var body  = document.getElementById('auditDetailBody');
+        if (!modal || !body) return;
+
+        body.innerHTML = '<p style="text-align:center;color:var(--text-muted)">Chargement...</p>';
+        modal.hidden = false;
+
+        fetch(BASE_URL + '/api/audit.php?action=details&id=' + id)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.success) {
+                body.innerHTML = '<p style="color:var(--danger)">' + escHtml(data.message) + '</p>';
+                return;
+            }
+
+            var log    = data.log;
+            var entity = data.entity;
+            var pieces = data.pieces || [];
+            var champs = data.champs || [];
+
+            var html = '';
+
+            html += '<div class="detail-field"><span class="detail-label">Date</span><div class="detail-value">' + formatDate(log.created_at) + '</div></div>';
+            html += '<div class="detail-field"><span class="detail-label">Utilisateur</span><div class="detail-value">' + escHtml(log.identifiant_snapshot) + ' <span class="text-muted">(' + escHtml(log.role_snapshot) + ')</span></div></div>';
+            html += '<div class="detail-field"><span class="detail-label">Action</span><div class="detail-value"><span class="badge badge-' + actionBadge(log.action) + '">' + escHtml(log.action) + '</span></div></div>';
+            html += '<div class="detail-field"><span class="detail-label">Adresse IP</span><div class="detail-value">' + escHtml(log.adresse_ip || '-') + '</div></div>';
+            if (log.details) {
+                html += '<div class="detail-field"><span class="detail-label">Details</span><div class="detail-value">' + escHtml(log.details) + '</div></div>';
+            }
+
+            html += '<hr style="margin:12px 0;border-color:var(--border)">';
+
+            if (log.cible_type && log.cible_id) {
+                html += '<div class="detail-field"><span class="detail-label">Entite</span><div class="detail-value">' + escHtml(log.cible_type) + ' #' + log.cible_id + '</div></div>';
+            } else if (log.cible_type) {
+                html += '<div class="detail-field"><span class="detail-label">Entite</span><div class="detail-value">' + escHtml(log.cible_type) + '</div></div>';
+            }
+
+            if (log.cible_type === 'application' && entity && typeof entity === 'object' && !Array.isArray(entity)) {
+                html += '<div class="detail-field"><span class="detail-label">Nom</span><div class="detail-value">' + escHtml(entity.nom) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Prenom</span><div class="detail-value">' + escHtml(entity.prenom || '-') + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Telephone</span><div class="detail-value">' + escHtml(entity.telephone) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Email</span><div class="detail-value">' + escHtml(entity.email || '-') + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Entreprise</span><div class="detail-value">' + escHtml(entity.entreprise || '-') + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Type</span><div class="detail-value"><span class="badge badge-' + typeClass(entity.type) + '">' + escHtml(typeLabel(entity.type)) + '</span></div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Statut</span><div class="detail-value"><span class="badge badge-' + statutClass(entity.statut) + '">' + escHtml(statutLabel(entity.statut)) + '</span></div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Message</span><div class="detail-value">' + escHtml(entity.message || '-') + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Cree le</span><div class="detail-value">' + formatDate(entity.created_at) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Modifie le</span><div class="detail-value">' + formatDate(entity.updated_at) + '</div></div>';
+
+                if (champs && champs.length) {
+                    champs.forEach(function(cp) {
+                        html += '<div class="detail-field"><span class="detail-label">' + escHtml(cp.libelle || cp.champ) + '</span><div class="detail-value">' + escHtml(cp.valeur || '-') + '</div></div>';
+                    });
+                }
+                if (pieces && pieces.length) {
+                    html += '<div class="detail-field"><span class="detail-label">Fichiers</span><div class="detail-value">' + piecesDetailHtml(pieces) + '</div></div>';
+                }
+            } else if (log.cible_type === 'user' && entity && typeof entity === 'object') {
+                html += '<div class="detail-field"><span class="detail-label">Identifiant</span><div class="detail-value">' + escHtml(entity.identifiant) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Nom complet</span><div class="detail-value">' + escHtml(entity.nom_complet) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Role</span><div class="detail-value">' + escHtml(entity.role) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Super Admin</span><div class="detail-value">' + (entity.is_super_admin ? 'Oui' : 'Non') + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Statut</span><div class="detail-value">' + escHtml(entity.statut_compte) + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Doit changer mdp</span><div class="detail-value">' + (entity.must_change_password ? 'Oui' : 'Non') + '</div></div>';
+                html += '<div class="detail-field"><span class="detail-label">Cree le</span><div class="detail-value">' + formatDate(entity.created_at) + '</div></div>';
+            } else if (log.cible_type === 'settings' && Array.isArray(entity)) {
+                entity.forEach(function(row) {
+                    html += '<div class="detail-field"><span class="detail-label">' + escHtml(row.cle) + '</span><div class="detail-value" style="word-break:break-all">' + escHtml(row.valeur || '-') + '</div></div>';
+                });
+            } else if (entity === null && log.cible_type) {
+                html += '<p class="text-muted" style="margin-top:8px">Entite introuvable ou supprimee.</p>';
+            }
+
+            body.innerHTML = html;
+        })
+        .catch(function() {
+            body.innerHTML = '<p style="color:var(--danger)">Erreur lors du chargement.</p>';
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'closeAuditModal' || e.target.id === 'auditDetailModal') {
+            var am = document.getElementById('auditDetailModal');
+            if (am) am.hidden = true;
+        }
+    });
+
+    // =========================================================================
+    // DESIGN - ONGLETS (communs aux deux grappes design-tabs)
+    // =========================================================================
+    function switchDesignTab(tab) {
+        document.querySelectorAll('.design-tab').forEach(function(b) {
+            b.classList.toggle('active', b.dataset.tab === tab);
+        });
+        document.querySelectorAll('.design-panel').forEach(function(p) {
+            p.hidden = p.dataset.panel !== tab;
+        });
+        document.querySelectorAll('.designs-list').forEach(function(l) {
+            l.hidden = l.dataset.cible !== tab;
+        });
+    }
+
+    document.querySelectorAll('.design-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            switchDesignTab(this.dataset.tab);
+        });
+    });
+
+    function activeDesignTab() {
+        var active = document.querySelector('.design-tab-main .design-tab.active, .design-tabs .design-tab.active');
+        return active ? active.dataset.tab : 'landing';
+    }
+
+    // =========================================================================
+    // DESIGN - PUBLICATION des changements (settings + sections + rubriques)
     // =========================================================================
     var publishBtn = document.getElementById('publishBtn');
     if (publishBtn) {
         publishBtn.addEventListener('click', function() {
-            var settings = {};
-
-            // Couleurs
-            document.querySelectorAll('[data-setting]').forEach(function(el) {
-                settings[el.dataset.setting] = el.value;
-            });
-
-            // Sync color pickers with text inputs
-            document.querySelectorAll('input[type="color"]').forEach(function(picker) {
-                var key = picker.id;
-                var textInput = document.querySelector('[data-setting="' + key + '"]');
-                if (textInput) {
-                    settings[key] = picker.value;
-                    textInput.value = picker.value;
-                }
-            });
+            var btn = this;
+            btn.disabled = true;
 
             fetch(BASE_URL + '/api/settings.php?action=update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
-                body: JSON.stringify(settings)
+                body: JSON.stringify(collectSettings())
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success) throw new Error(data.message || 'Erreur');
+                return fetch(BASE_URL + '/api/settings.php?action=update_sections', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
+                    body: JSON.stringify({ sections: collectSections() })
+                }).then(function(r) { return r.json(); });
+            })
+            .then(function(data) {
+                if (data.success) showToast('Changements publies sur le site.');
+                else showToast(data.message, true);
+            })
+            .catch(function() { showToast('Erreur lors de la publication.', true); })
+            .finally(function() { btn.disabled = false; });
+        });
+    }
+
+    function collectSettings() {
+        var settings = {};
+        document.querySelectorAll('[data-setting]').forEach(function(el) {
+            if (el.type === 'color') return;
+            settings[el.dataset.setting] = el.value;
+        });
+        return settings;
+    }
+
+    function collectSections() {
+        var sections = [];
+        document.querySelectorAll('.section-editor').forEach(function(el) {
+            var rubriques = [];
+            el.querySelectorAll('.rubrique-row').forEach(function(row) {
+                rubriques.push({
+                    icone: fieldVal(row.querySelector('.rub-icone')),
+                    titre: fieldVal(row.querySelector('.rub-titre')),
+                    contenu: fieldVal(row.querySelector('.rub-contenu')),
+                    image_url: fieldVal(row.querySelector('.rub-url')),
+                    fond_couleur: nullIfEmpty(fieldVal(row.querySelector('.rub-fond'))),
+                    texte_couleur: nullIfEmpty(fieldVal(row.querySelector('.rub-texte'))),
+                    visible: toBool(row.querySelector('.rub-visible').checked)
+                });
+            });
+            sections.push({
+                id: parseInt(el.dataset.id, 10) || 0,
+                section_key: el.dataset.key || '',
+                titre: fieldVal(el.querySelector('.section-titre')),
+                contenu: fieldVal(el.querySelector('.section-contenu')),
+                image_url: fieldVal(el.querySelector('.section-url')),
+                fond_couleur: nullIfEmpty(fieldVal(el.querySelector('.section-fond'))),
+                texte_couleur: nullIfEmpty(fieldVal(el.querySelector('.section-texte'))),
+                fond_image_url: fieldVal(el.querySelector('.section-bg-url')),
+                titre_taille: fieldVal(el.querySelector('.section-taille')),
+                ordre: parseInt(fieldVal(el.querySelector('.section-ordre')), 10) || 0,
+                visible: toBool(el.querySelector('.section-visible').checked)
+            });
+        });
+        return sections;
+    }
+
+    function fieldVal(el) { return el ? el.value : ''; }
+    function nullIfEmpty(v) { return v === '' ? null : v; }
+    function toBool(v) { return v === 'false' ? false : !!v; }
+
+    // =========================================================================
+    // DESIGN - SAUVEGARDE d'un design (capture de l'onglet actif)
+    // =========================================================================
+    var saveDesignBtn = document.getElementById('saveDesignBtn');
+    if (saveDesignBtn) {
+        saveDesignBtn.addEventListener('click', function() {
+            var nameInput = document.getElementById('designName');
+            var descInput = document.getElementById('designDescription');
+            var nom = nameInput ? nameInput.value : '';
+            var description = descInput ? descInput.value : '';
+            if (!nom) { showToast('Indiquez un nom pour le design.', true); return; }
+
+            var tab = activeDesignTab();
+            var config = { settings: collectPanelSettings(tab) };
+            if (tab === 'landing') config.sections = collectSections();
+
+            var btn = this;
+            btn.disabled = true;
+            fetch(BASE_URL + '/api/designs.php?action=save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
+                body: JSON.stringify({
+                    id: typeof EDITING_DESIGN_ID !== 'undefined' ? EDITING_DESIGN_ID : 0,
+                    cible: tab,
+                    nom: nom,
+                    description: description,
+                    configuration: config
+                })
             })
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showToast('Parametres du site mis a jour.');
+                    showToast('Design enregistre.');
+                    setTimeout(function() {
+                        if (data.id) window.location.href = BASE_URL + '/admin/design.php?design=' + data.id + '&tab=' + tab;
+                        else window.location.reload();
+                    }, 500);
                 } else {
                     showToast(data.message, true);
                 }
-            });
-        });
-
-        // Sync color pickers
-        document.querySelectorAll('input[type="color"]').forEach(function(picker) {
-            picker.addEventListener('input', function() {
-                var textInput = document.querySelector('[data-setting="' + this.id + '"]');
-                if (textInput) textInput.value = this.value;
-            });
-        });
-        document.querySelectorAll('.color-input-group .form-input').forEach(function(textInput) {
-            textInput.addEventListener('input', function() {
-                var picker = document.getElementById(this.dataset.setting);
-                if (picker && /^#[0-9A-Fa-f]{6}$/.test(this.value)) picker.value = this.value;
-            });
-        });
-
-        // Save sections
-        publishBtn.addEventListener('click', function() {
-            var sections = [];
-            document.querySelectorAll('.section-editor').forEach(function(el) {
-                sections.push({
-                    id: parseInt(el.dataset.id),
-                    titre: el.querySelector('.section-titre').value,
-                    contenu: el.querySelector('.section-contenu').value,
-                    ordre: parseInt(el.querySelector('.section-ordre').value),
-                    visible: el.querySelector('.section-visible').checked
-                });
-            });
-
-            fetch(BASE_URL + '/api/settings.php?action=update_sections', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF_TOKEN },
-                body: JSON.stringify({ sections: sections })
             })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                if (data.success) showToast('Sections mises a jour.');
-                else showToast(data.message, true);
-            });
+            .catch(function() { showToast('Erreur lors de la sauvegarde.', true); })
+            .finally(function() { btn.disabled = false; });
         });
     }
 
-    // =========================================================================
-    // DESIGN - PREVIEW (apercu de la landing dans un nouvel onglet)
-    // =========================================================================
-    var previewBtn = document.getElementById('previewBtn');
-    if (previewBtn) {
-        previewBtn.addEventListener('click', function() {
-            window.open(BASE_URL + '/', '_blank');
+    function collectPanelSettings(cible) {
+        var panel = document.querySelector('.design-panel[data-panel="' + cible + '"]');
+        if (!panel) return {};
+        var settings = {};
+        panel.querySelectorAll('[data-setting]').forEach(function(el) {
+            if (el.type === 'color') return;
+            settings[el.dataset.setting] = el.value;
         });
+        return settings;
     }
 
     // =========================================================================
-    // DESIGN - UPLOAD IMAGES (logo, banniere, section)
+    // DESIGN - ACTIONS sur les designs (activer / dupliquer / supprimer)
     // =========================================================================
-    document.querySelectorAll('.upload-input').forEach(function(input) {
+    document.querySelectorAll('.design-activate').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (!confirm('Activer ce design ? Son contenu remplacera la configuration actuelle du site.')) return;
+            designAction('activate', this.dataset.id, this);
+        });
+    });
+    document.querySelectorAll('.design-duplicate').forEach(function(btn) {
+        btn.addEventListener('click', function() { designAction('duplicate', this.dataset.id, this); });
+    });
+    document.querySelectorAll('.design-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            if (!confirm('Supprimer ce design ? Cette action est irreversible.')) return;
+            designAction('delete', this.dataset.id, this);
+        });
+    });
+
+    function designAction(action, id, btn) {
+        var fd = new FormData();
+        fd.append('id', id);
+        btn.disabled = true;
+        fetch(BASE_URL + '/api/designs.php?action=' + action, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
+            body: fd
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                showToast('Design ' + action + ' avec succes.');
+                setTimeout(function() { window.location.reload(); }, 600);
+            } else {
+                showToast(data.message, true);
+                btn.disabled = false;
+            }
+        })
+        .catch(function() { showToast('Erreur.', true); btn.disabled = false; });
+    }
+
+    // =========================================================================
+    // DESIGN - PREVIEW (lien signe genere cote serveur dans design.php)
+    // Le bouton #previewBtn est un vrai lien (ou desactive) ; aucune logique ici.
+    // =========================================================================
+
+    // =========================================================================
+    // DESIGN - UPLOAD IMAGES (logo, banniere, login_bg, section, section_bg, rubrique)
+    // =========================================================================
+    document.querySelectorAll('.upload-input:not(.rub-upload)').forEach(function(input) {
         input.addEventListener('change', function() {
             var file = this.files[0];
             if (!file) return;
@@ -684,6 +1016,12 @@
             fd.append('image', file);
             fd.append('type', type);
             if (sectionId) fd.append('section_id', sectionId);
+            // Pour les sections chargees depuis un design (id=0), on passe la cle
+            // afin de retrouver la bonne section en base au moment de la publication.
+            if (!sectionId || sectionId === '0') {
+                var sec = this.closest('.section-editor');
+                if (sec && sec.dataset.key) fd.append('section_key', sec.dataset.key);
+            }
 
             var btn = this;
             var originalText = btn.value;
@@ -697,8 +1035,18 @@
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showToast('Image upload avec succes.');
-                    setTimeout(function() { window.location.reload(); }, 600);
+                    if (type === 'rubrique') {
+                        var row = btn.closest('.rubrique-fields');
+                        var urlInput = row ? row.querySelector('.rub-url') : null;
+                        if (urlInput) { urlInput.value = data.url; showToast('Image de rubrique ajoutee au lien.'); }
+                    } else if (type === 'section_bg') {
+                        var sec2 = btn.closest('.section-editor');
+                        var bgInput = sec2 ? sec2.querySelector('.section-bg-url') : null;
+                        if (bgInput) { bgInput.value = data.url; showToast('Image de fond ajoutee au lien.'); }
+                    } else {
+                        showToast('Image upload avec succes.');
+                        setTimeout(function() { window.location.reload(); }, 600);
+                    }
                 } else {
                     showToast(data.message, true);
                 }
@@ -721,6 +1069,7 @@
             var fd = new FormData();
             fd.append('type', type);
             fd.append('remove', '1');
+            if (sectionId) fd.append('section_id', sectionId);
 
             fetch(BASE_URL + '/api/upload.php?action=remove', {
                 method: 'POST',
@@ -730,7 +1079,7 @@
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data.success) {
-                    showToast('Image supprimer.');
+                    showToast('Image supprimee.');
                     setTimeout(function() { window.location.reload(); }, 600);
                 } else {
                     showToast(data.message, true);
@@ -740,10 +1089,197 @@
     });
 
     // =========================================================================
+    // SETTINGS - PAGE PARAMETRES GLOBAUX
+    // =========================================================================
+    var saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', function() {
+            var payload = {};
+            document.querySelectorAll('[data-setting]').forEach(function(input) {
+                payload[input.dataset.setting] = input.value;
+            });
+
+            var btn = saveSettingsBtn;
+            btn.disabled = true;
+            btn.textContent = 'Publication...';
+
+            fetch(BASE_URL + '/api/settings.php?action=update', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Parametres mis a jour avec succes.');
+                } else {
+                    showToast(data.message, true);
+                }
+            })
+            .catch(function() {
+                showToast('Erreur lors de la sauvegarde.', true);
+            })
+            .finally(function() {
+                btn.disabled = false;
+                btn.textContent = 'Publier les changements';
+            });
+        });
+    }
+
+    // =========================================================================
+    // DESIGN - SYNCHRO des pickers de couleur (sections + rubriques)
+    // =========================================================================
+    function syncColorGroup(picker, textInput) {
+        if (!picker || !textInput) return;
+        picker.addEventListener('input', function() { textInput.value = this.value; });
+        textInput.addEventListener('input', function() {
+            if (/^#[0-9A-Fa-f]{6}$/.test(this.value)) picker.value = this.value;
+            else picker.value = '#000000';
+        });
+    }
+
+    document.querySelectorAll('.section-editor').forEach(function(sec) {
+        syncColorGroup(sec.querySelector('.sect-fond-color'), sec.querySelector('.section-fond'));
+        syncColorGroup(sec.querySelector('.sect-texte-color'), sec.querySelector('.section-texte'));
+        sec.querySelectorAll('.rubrique-row').forEach(function(row) {
+            syncColorGroup(row.querySelector('.rub-fond-color'), row.querySelector('.rub-fond'));
+            syncColorGroup(row.querySelector('.rub-texte-color'), row.querySelector('.rub-texte'));
+        });
+    });
+
+    // =========================================================================
+    // DESIGN - RUBRIQUES : ajout / montee / descente / suppression
+    // =========================================================================
+    function rubriqueRowTemplate() {
+        var icons = [
+            ['ecoute', 'Ecoute / Cœur'],
+            ['reactivite', 'Reactivite / Horloge'],
+            ['qualite', 'Qualite / Bouclier'],
+            ['televente', 'Televente / Telephone'],
+            ['prospection', 'Prospection / Equipe'],
+            ['apres_vente', 'Apres-vente / Protection'],
+            ['relation', 'Relation / Message'],
+            ['telecom', 'Telecom / Antenne']
+        ];
+        var opts = '<option value="">-- (nombre / aucune) --</option>';
+        icons.forEach(function(ic) {
+            opts += '<option value="' + ic[0] + '">' + ic[1] + '</option>';
+        });
+        return '<div class="rubrique-row">'
+            + '<div class="rubrique-controls">'
+            + '<button type="button" class="btn btn-sm btn-outline rub-up" title="Monter">&#9650;</button>'
+            + '<button type="button" class="btn btn-sm btn-outline rub-down" title="Descendre">&#9660;</button>'
+            + '</div>'
+            + '<div class="rubrique-fields">'
+            + '<div class="form-grid">'
+            + '<div class="form-group"><label>Icone (choix parmi 8)</label>'
+            + '<select class="form-select rub-icone">' + opts + '</select></div>'
+            + '<div class="form-group"><label>Visible</label>'
+            + '<label class="toggle-switch"><input type="checkbox" class="rub-visible" checked><span class="toggle-slider"></span></label>'
+            + '</div></div>'
+            + '<div class="form-grid">'
+            + '<div class="form-group"><label>Titre</label>'
+            + '<input type="text" class="form-input rub-titre" placeholder="Titre de la rubrique"></div>'
+            + '<div class="form-group"><label>Image (lien ou upload)</label>'
+            + '<div class="upload-url-row">'
+            + '<input type="text" class="form-input rub-url" placeholder="https://...">'
+            + '<input type="file" class="upload-input rub-upload" data-upload-type="rubrique" accept="image/png,image/jpeg,image/webp,image/gif">'
+            + '</div></div></div>'
+            + '<div class="form-group"><label>Contenu</label>'
+            + '<textarea class="form-textarea rub-contenu" rows="2" placeholder="Description courte"></textarea></div>'
+            + '<div class="form-grid">'
+            + '<div class="form-group"><label>Fond de la carte (couleur)</label>'
+            + '<div class="color-input-group">'
+            + '<input type="color" class="rub-fond-color" value="#000000"><input type="text" class="form-input rub-fond" placeholder="auto">'
+            + '</div></div>'
+            + '<div class="form-group"><label>Texte de la carte (couleur)</label>'
+            + '<div class="color-input-group">'
+            + '<input type="color" class="rub-texte-color" value="#000000"><input type="text" class="form-input rub-texte" placeholder="auto">'
+            + '</div></div></div>'
+            + '</div>'
+            + '<button type="button" class="btn btn-sm btn-danger rub-delete">Supprimer</button>'
+            + '</div>';
+    }
+
+    function bindRubriqueRow(row) {
+        var up = row.querySelector('.rub-up');
+        var down = row.querySelector('.rub-down');
+        var del = row.querySelector('.rub-delete');
+        if (up) up.addEventListener('click', function() {
+            var prev = row.previousElementSibling;
+            if (prev) row.parentNode.insertBefore(row, prev);
+        });
+        if (down) down.addEventListener('click', function() {
+            var next = row.nextElementSibling;
+            if (next) row.parentNode.insertBefore(next, row);
+        });
+        if (del) del.addEventListener('click', function() { row.remove(); });
+
+        var upload = row.querySelector('.rub-upload');
+        if (upload) upload.addEventListener('change', function() {
+            var file = this.files[0];
+            if (!file) return;
+            var fd = new FormData();
+            fd.append('image', file);
+            fd.append('type', 'rubrique');
+            var btn = this;
+            btn.disabled = true;
+            fetch(BASE_URL + '/api/upload.php', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
+                body: fd
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var urlInput = row.querySelector('.rub-url');
+                    if (urlInput) { urlInput.value = data.url; showToast('Image de rubrique ajoutee au lien.'); }
+                } else showToast(data.message, true);
+            })
+            .catch(function() { showToast('Erreur lors de l\'upload.', true); })
+            .finally(function() { btn.disabled = false; btn.value = ''; });
+        });
+
+        syncColorGroup(row.querySelector('.rub-fond-color'), row.querySelector('.rub-fond'));
+        syncColorGroup(row.querySelector('.rub-texte-color'), row.querySelector('.rub-texte'));
+    }
+
+    document.querySelectorAll('.rubrique-add').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var list = btn.closest('.rubriques-block').querySelector('.rubriques-list');
+            var temp = document.createElement('div');
+            temp.innerHTML = rubriqueRowTemplate();
+            var row = temp.firstChild;
+            list.appendChild(row);
+            bindRubriqueRow(row);
+        });
+    });
+
+    document.querySelectorAll('.rubrique-row').forEach(bindRubriqueRow);
+
+    // =========================================================================
+    // DESIGN - SLIDER du voile de connexion (login_bg_fondu)
+    // =========================================================================
+    var fonduRange = document.getElementById('login_bg_fondu');
+    var fonduHidden = document.getElementById('login_bg_fondu_hidden');
+    var fonduLabel = document.getElementById('loginFonduValue');
+    function syncFondu() {
+        if (fonduHidden) fonduHidden.value = fonduRange.value;
+        if (fonduLabel) fonduLabel.textContent = fonduRange.value + '%';
+    }
+    if (fonduRange) {
+        fonduRange.addEventListener('input', syncFondu);
+        syncFondu();
+    }
+
+    // =========================================================================
     // DESIGN - DRAG & DROP des sections
     // =========================================================================
     var sectionsList = document.getElementById('sectionsList');
-    if (sectionsList && !READONLY) {
+    if (sectionsList && typeof READONLY !== 'undefined' && !READONLY) {
         var dragItem = null;
 
         sectionsList.querySelectorAll('.section-editor').forEach(function(item) {
@@ -811,6 +1347,109 @@
     // =========================================================================
     // PREFERENCES FORMS
     // =========================================================================
+
+    // =========================================================================
+    // ERROR LOGS - LISTING
+    // =========================================================================
+    var logsBody = document.getElementById('logsBody');
+    if (logsBody) {
+        var currentLogsPage = 1;
+
+        function loadLogs(page) {
+            currentLogsPage = page || 1;
+            var params = new URLSearchParams();
+            params.set('action', 'list');
+            params.set('page', currentLogsPage);
+
+            var search = document.getElementById('logsSearch');
+            var niveauF = document.getElementById('logsNiveauFilter');
+            if (search && search.value) params.set('search', search.value);
+            if (niveauF && niveauF.value) params.set('niveau', niveauF.value);
+
+            fetch(BASE_URL + '/api/logs.php?' + params.toString())
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) renderLogsTable(data.items, data.total, data.page, data.pages);
+            });
+        }
+
+        function renderLogsTable(items, total, page, pages) {
+            if (!items || items.length === 0) {
+                logsBody.innerHTML = '<tr><td colspan="7" class="text-center">Aucune erreur enregistree.</td></tr>';
+                document.getElementById('logsPagination').innerHTML = '';
+                return;
+            }
+
+            var html = '';
+            items.forEach(function(log) {
+                var niveauClass = log.niveau === 'ERROR' ? 'danger' : log.niveau === 'WARNING' ? 'warning' : 'info';
+                html += '<tr>';
+                html += '<td>' + formatDate(log.created_at) + '</td>';
+                html += '<td><span class="badge badge-' + niveauClass + '">' + escHtml(log.niveau) + '</span></td>';
+                html += '<td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(log.message) + '">' + escHtml(log.message) + '</td>';
+                html += '<td><span class="text-muted">' + escHtml(log.fichier || '-') + ':' + log.ligne + '</span></td>';
+                html += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(log.url || '') + '">' + escHtml(log.url || '-') + '</td>';
+                html += '<td>' + (log.user_id ? '#' + log.user_id : '<span class="text-muted">-</span>') + '</td>';
+                html += '<td><button class="btn btn-sm btn-danger delete-log-btn" data-id="' + safeId(log.id) + '">X</button></td>';
+                html += '</tr>';
+            });
+            logsBody.innerHTML = html;
+
+            var pag = document.getElementById('logsPagination');
+            if (pag && pages > 1) {
+                var ph = '';
+                for (var i = 1; i <= pages; i++) {
+                    ph += '<button class="' + (i === page ? 'active' : '') + '" onclick="window._loadLogs(' + i + ')">' + i + '</button>';
+                }
+                pag.innerHTML = ph;
+            } else if (pag) {
+                pag.innerHTML = '';
+            }
+
+            logsBody.querySelectorAll('.delete-log-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    if (confirm('Supprimer cette entree du journal ?')) {
+                        deleteLogEntry(this.dataset.id);
+                    }
+                });
+            });
+        }
+
+        function deleteLogEntry(id) {
+            fetch(BASE_URL + '/api/logs.php?action=delete&id=' + id, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF_TOKEN }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('Entree supprimee.');
+                    loadLogs(currentLogsPage);
+                } else {
+                    showToast(data.message, true);
+                }
+            });
+        }
+
+        window._loadLogs = function(p) { loadLogs(p); };
+
+        var logsSearch = document.getElementById('logsSearch');
+        var logsNiveauFilter = document.getElementById('logsNiveauFilter');
+        if (logsSearch) {
+            var logsTimeout;
+            logsSearch.addEventListener('input', function() {
+                clearTimeout(logsTimeout);
+                logsTimeout = setTimeout(function() { loadLogs(1); }, 300);
+            });
+        }
+        if (logsNiveauFilter) logsNiveauFilter.addEventListener('change', function() { loadLogs(1); });
+
+        loadLogs(1);
+    }
+
+    // =========================================================================
+    // PREFERENCES FORMS (suite)
+    // =========================================================================
     var preferencesForm = document.getElementById('preferencesForm');
     if (preferencesForm) {
         preferencesForm.addEventListener('submit', function(e) {
@@ -836,6 +1475,7 @@
 
             fetch(BASE_URL + '/api/auth.php?action=change_password', {
                 method: 'POST',
+                headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
                 body: fd
             })
             .then(function(r) { return r.json(); })
@@ -847,10 +1487,12 @@
     // HELPERS
     // =========================================================================
     function escHtml(str) {
-        if (!str) return '';
-        var div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function showToast(message, isError) {
@@ -898,6 +1540,15 @@
             rows += '</div>';
         });
         return rows;
+    }
+
+    function safeId(v) {
+        var n = parseInt(v, 10);
+        return isNaN(n) ? '' : n;
+    }
+
+    function typeClass(type) {
+        return type === 'partenariat' ? 'partenariat' : type === 'recrutement' ? 'recrutement' : 'secondary';
     }
 
     function typeLabel(type) {

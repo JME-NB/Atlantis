@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/../includes/auth_check.php';
+require_once __DIR__ . '/../includes/admin_theme.php';
 requireRole('admin');
 
 $csrf = generateCsrfToken();
@@ -15,10 +16,11 @@ $csrf = generateCsrfToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Utilisateurs - ATLANTIS Admin</title>
+    <title>Gestion des utilisateurs - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=6">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
     <?php include __DIR__ . '/sidebar.php'; ?>
@@ -32,6 +34,7 @@ $csrf = generateCsrfToken();
                 <h1>Gestion des utilisateurs</h1>
             </div>
             <div class="header-right">
+                <?php echo renderNotificationBellHtml(); ?>
                 <button class="btn btn-primary" id="createUserBtn">Creer un compte</button>
             </div>
         </header>
@@ -127,6 +130,7 @@ $csrf = generateCsrfToken();
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     const IS_SUPER_ADMIN = <?php echo isSuperAdmin() ? 'true' : 'false'; ?>;
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=4"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

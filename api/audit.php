@@ -6,6 +6,7 @@
  *
  * Endpoints :
  *   GET ?action=list (admin/super-admin)
+ *   GET ?action=details&id=X (admin/super-admin)
  * ============================================================================
  */
 
@@ -17,6 +18,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 switch ($action) {
     case 'list':
         handleList();
+        break;
+    case 'details':
+        handleDetails();
         break;
     default:
         jsonError(400, 'Action inconnue.');
@@ -80,4 +84,65 @@ function handleList(): void
         'page'  => $page,
         'pages' => (int) ceil($total / $limit),
     ]);
+}
+
+// ---------------------------------------------------------------------------
+// DETAILS (log + donnees de l'entite cible)
+// ---------------------------------------------------------------------------
+function handleDetails(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') jsonError(405, 'Methode non autorisee.');
+    if (!isLoggedIn()) jsonError(401, 'Acces refuse.');
+    if (!hasPermission('admin')) jsonError(403, 'Permissions insuffisantes.');
+
+    $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+    if (!$id || $id <= 0) jsonError(400, 'Identifiant invalide.');
+
+    try {
+        $pdo  = getDB();
+        $stmt = $pdo->prepare('SELECT * FROM audit_log WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $log = $stmt->fetch();
+
+        if (!$log) jsonError(404, 'Entree inconnue.');
+
+        $entity = null;
+        $pieces = [];
+
+        if ($log['cible_type'] === 'application' && $log['cible_id'] !== null) {
+            $stmt = $pdo->prepare('SELECT * FROM applications WHERE id = :id LIMIT 1');
+            $stmt->execute([':id' => $log['cible_id']]);
+            $entity = $stmt->fetch();
+
+            if ($entity) {
+                $stmt = $pdo->prepare('SELECT * FROM application_champs_personnalises WHERE application_id = :id ORDER BY id ASC');
+                $stmt->execute([':id' => $entity['id']]);
+                $cps = $stmt->fetchAll();
+
+                $stmt = $pdo->prepare('SELECT * FROM application_pieces WHERE application_id = :id ORDER BY id ASC');
+                $stmt->execute([':id' => $entity['id']]);
+                $pieces = $stmt->fetchAll();
+            }
+        } elseif ($log['cible_type'] === 'user' && $log['cible_id'] !== null) {
+            $stmt = $pdo->prepare('SELECT id, identifiant, nom_complet, role, is_super_admin, statut_compte, must_change_password, created_at FROM users WHERE id = :id LIMIT 1');
+            $stmt->execute([':id' => $log['cible_id']]);
+            $entity = $stmt->fetch();
+        } elseif ($log['cible_type'] === 'settings') {
+            $stmt = $pdo->query('SELECT cle, valeur FROM site_settings');
+            $entity = [];
+            while ($row = $stmt->fetch()) {
+                $entity[] = ['cle' => $row['cle'], 'valeur' => $row['valeur']];
+            }
+        }
+
+        jsonSuccess('Details recuperes.', [
+            'log'       => $log,
+            'entity'    => $entity,
+            'pieces'    => $pieces,
+            'champs'    => $cps ?? null,
+        ]);
+    } catch (PDOException $e) {
+        logError('ERROR', 'Audit details error: ' . $e->getMessage(), 'api/audit.php', 145);
+        jsonError(500, 'Erreur interne.');
+    }
 }

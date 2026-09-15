@@ -135,9 +135,17 @@ function handleCreate(): void
         $newId = $pdo->lastInsertId();
         logAudit('create_user', 'user', (int)$newId, 'Compte cree : ' . $identifiant . ' (role: ' . $role . ')');
 
+        notify(
+            'utilisateur_cree',
+            'Nouvel utilisateur ' . $identifiant . ' (' . $role . ') cree par ' . getAdminDisplayName(),
+            ['admin'],
+            'user',
+            (int)$newId
+        );
+
         jsonSuccess('Compte cree avec succes. Mot de passe par defaut : 1234', ['new_id' => $newId]);
     } catch (PDOException $e) {
-        error_log('Create user error: ' . $e->getMessage());
+        logError('ERROR', 'Create user error: ' . $e->getMessage(), 'api/users.php', 148);
         jsonError(500, 'Erreur interne.');
     }
 }
@@ -192,9 +200,17 @@ function handleUpdateRole(): void
 
         logAudit('update_user_role', 'user', $userId, 'Role change de "' . $user['role'] . '" vers "' . $newRole . '" pour ' . $user['identifiant']);
 
+        notify(
+            'utilisateur_modifie',
+            'Utilisateur ' . $user['identifiant'] . ' : role modifie ("' . $user['role'] . '" -> "' . $newRole . '") par ' . getAdminDisplayName(),
+            ['admin'],
+            'user',
+            $userId
+        );
+
         jsonSuccess('Role mis a jour avec succes.');
     } catch (PDOException $e) {
-        error_log('Update role error: ' . $e->getMessage());
+        logError('ERROR', 'Update role error: ' . $e->getMessage(), 'api/users.php', 213);
         jsonError(500, 'Erreur interne.');
     }
 }
@@ -241,9 +257,17 @@ function handleResetPassword(): void
 
         logAudit('reset_password', 'user', $userId, 'Mot de passe reinitialise pour ' . $user['identifiant']);
 
+        notify(
+            'utilisateur_modifie',
+            'Utilisateur ' . $user['identifiant'] . ' : mot de passe reinitialise par ' . getAdminDisplayName(),
+            ['admin'],
+            'user',
+            $userId
+        );
+
         jsonSuccess('Mot de passe reinitialise a "1234". L\'utilisateur devra le changer a sa prochaine connexion.');
     } catch (PDOException $e) {
-        error_log('Reset password error: ' . $e->getMessage());
+        logError('ERROR', 'Reset password error: ' . $e->getMessage(), 'api/users.php', 270);
         jsonError(500, 'Erreur interne.');
     }
 }
@@ -294,9 +318,17 @@ function handleDelete(): void
 
         logAudit('delete_user', 'user', $userId, 'Compte supprime (soft delete) : ' . $user['identifiant']);
 
+        notify(
+            'utilisateur_supprime',
+            'Utilisateur ' . $user['identifiant'] . ' (' . $user['role'] . ') supprime par ' . getAdminDisplayName(),
+            ['admin'],
+            'user',
+            $userId
+        );
+
         jsonSuccess('Le compte a ete desactive et supprime.');
     } catch (PDOException $e) {
-        error_log('Delete user error: ' . $e->getMessage());
+        logError('ERROR', 'Delete user error: ' . $e->getMessage(), 'api/users.php', 331);
         jsonError(500, 'Erreur interne.');
     }
 }
@@ -333,7 +365,7 @@ function handleUpdatePreferences(): void
 
         jsonSuccess('Preferences mises a jour.');
     } catch (PDOException $e) {
-        error_log('Update preferences error: ' . $e->getMessage());
+        logError('ERROR', 'Update preferences error: ' . $e->getMessage(), 'api/users.php', 368);
         jsonError(500, 'Erreur interne.');
     }
 }

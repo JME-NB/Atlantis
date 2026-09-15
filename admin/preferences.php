@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/../includes/auth_check.php';
+require_once __DIR__ . '/../includes/admin_theme.php';
 
 $csrf = generateCsrfToken();
 
@@ -23,7 +24,8 @@ $user = $stmt->fetch();
     <title>Preferences - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=6">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
     <?php include __DIR__ . '/sidebar.php'; ?>
@@ -35,6 +37,9 @@ $user = $stmt->fetch();
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <h1>Preferences</h1>
+            </div>
+            <div class="header-right">
+                <?php echo renderNotificationBellHtml(); ?>
             </div>
         </header>
 
@@ -98,6 +103,7 @@ $user = $stmt->fetch();
     const BASE_URL = '<?php echo BASE_URL; ?>';
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=4"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

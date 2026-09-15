@@ -1,0 +1,10 @@
+# Donnees personnelles des candidats
+/private/candidatures/*
+
+# Images uploadees (contenu du site, non versionne)
+/uploads/hero/*
+/uploads/logos/*
+/uploads/sections/*
+
+# Logs et artefacts de developpement locaux
+session-ses_f78f.md

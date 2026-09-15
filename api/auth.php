@@ -100,7 +100,7 @@ function handleLogin(): void
             'role' => $user['role'],
         ]);
     } catch (PDOException $e) {
-        error_log('Login error: ' . $e->getMessage());
+        logError('ERROR', 'Login error: ' . $e->getMessage(), 'api/auth.php', 103);
         jsonError(500, 'Une erreur interne est survenue.');
     }
 }
@@ -134,6 +134,11 @@ function handleChangePassword(): void
         jsonError(401, 'Acces refuse.');
     }
 
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) {
+        jsonError(403, 'Token CSRF invalide.');
+    }
+
     $ancien     = $_POST['ancien_mot_de_passe'] ?? '';
     $nouveau    = $_POST['nouveau_mot_de_passe'] ?? '';
     $confirmation = $_POST['confirmation'] ?? '';
@@ -149,12 +154,13 @@ function handleChangePassword(): void
         jsonError(400, 'Le nouveau mot de passe est obligatoire.');
     }
 
-    if (mb_strlen($nouveau) < 6) {
-        jsonError(400, 'Le mot de passe doit contenir au moins 6 caracteres.');
-    }
-
     if ($nouveau !== $confirmation) {
         jsonError(400, 'Les mots de passe ne correspondent pas.');
+    }
+
+    $policyError = validatePasswordPolicy($nouveau);
+    if ($policyError !== null) {
+        jsonError(400, $policyError);
     }
 
     try {
@@ -184,7 +190,7 @@ function handleChangePassword(): void
 
         jsonSuccess('Mot de passe modifie avec succes.');
     } catch (PDOException $e) {
-        error_log('Change password error: ' . $e->getMessage());
+        logError('ERROR', 'Change password error: ' . $e->getMessage(), 'api/auth.php', 187);
         jsonError(500, 'Erreur interne.');
     }
 }

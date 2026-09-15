@@ -10,7 +10,7 @@ require_once __DIR__ . '/../includes/csrf.php';
 
 // Si deja connecte (ou cookie "se souvenir de moi" valide), rediriger
 maybeAutoLogin();
-if (isLoggedIn()) {
+if (isLoggedIn() && !isset($_GET['preview'])) {
     header('Location: ' . BASE_URL . '/admin/dashboard.php');
     exit;
 }
@@ -23,14 +23,35 @@ $loginSettings = [
     'login_primaire'    => '#0a1628',
     'login_secondaire'  => '#00b4d8',
     'login_bg_url'      => '',
+    'login_police'      => 'Inter',
+    'login_police_taille' => '1.15',
+    'login_titre_taille'  => '2.5',
+    'login_texte_couleur' => '#1e293b',
+    'login_carte_fond'    => '#ffffff',
+    'login_bg_fondu'      => '55',
 ];
 try {
-    $stmt = getDB()->query('SELECT cle, valeur FROM site_settings WHERE cle IN ("login_fond","login_primaire","login_secondaire","login_bg_url")');
+    $cleListe = implode(',', array_map(function ($c) { return '"' . $c . '"'; }, array_keys($loginSettings)));
+    $stmt = getDB()->query('SELECT cle, valeur FROM site_settings WHERE cle IN (' . $cleListe . ')');
     while ($row = $stmt->fetch()) {
         $loginSettings[$row['cle']] = $row['valeur'];
     }
 } catch (PDOException $e) {
-    error_log('Login settings error: ' . $e->getMessage());
+    logError('ERROR', 'Login settings error: ' . $e->getMessage(), 'admin/login.php', 40);
+}
+
+// --- Apercu d'un design de connexion non publie (?preview=ID&sig=...) ---
+$loginPreviewRibbon = null;
+if (isset($_GET['preview'], $_GET['sig'])) {
+    require_once __DIR__ . '/../includes/preview.php';
+    $previewDesign = previewDesign((int) $_GET['preview'], (string) $_GET['sig']);
+    if ($previewDesign !== null && $previewDesign['cible'] === 'login') {
+        $cfg = $previewDesign['configuration'];
+        if (isset($cfg['settings']) && is_array($cfg['settings'])) {
+            $loginSettings = array_merge($loginSettings, $cfg['settings']);
+        }
+        $loginPreviewRibbon = (string) $previewDesign['nom'];
+    }
 }
 
 if (!function_exists('hexToRgb')) {
@@ -51,6 +72,14 @@ $loginBg = trim((string)($loginSettings['login_fond'] ?? ''));
 $loginPrimary = trim((string)($loginSettings['login_primaire'] ?? ''));
 $loginSecondary = trim((string)($loginSettings['login_secondaire'] ?? ''));
 $loginBgUrl = trim((string)($loginSettings['login_bg_url'] ?? ''));
+$loginPolice = trim((string)($loginSettings['login_police'] ?? 'Inter')) ?: 'Inter';
+$loginPoliceTaille = trim((string)($loginSettings['login_police_taille'] ?? ''));
+$loginTitreTaille = trim((string)($loginSettings['login_titre_taille'] ?? ''));
+$loginTexteCouleur = trim((string)($loginSettings['login_texte_couleur'] ?? ''));
+$loginCarteFond = trim((string)($loginSettings['login_carte_fond'] ?? ''));
+$loginBgFondu = (int)($loginSettings['login_bg_fondu'] ?? 55);
+$loginBgFondu = max(0, min(100, $loginBgFondu));
+$loginVoile = $loginBg !== '' ? 'rgba(' . hexToRgb($loginBg) . ', ' . ($loginBgFondu / 100) . ')' : 'rgba(10, 22, 40, ' . ($loginBgFondu / 100) . ')';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -59,19 +88,31 @@ $loginBgUrl = trim((string)($loginSettings['login_bg_url'] ?? ''));
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=6">
+    <link href="https://fonts.googleapis.com/css2?family=<?php echo htmlspecialchars(str_replace(' ', '+', $loginPolice), ENT_QUOTES, 'UTF-8'); ?>:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=8">
     <style>
     :root {
         --login-bg: <?php echo $loginBg !== '' ? htmlspecialchars($loginBg, ENT_QUOTES) : '#0a1628'; ?>;
         --login-primary: <?php echo $loginPrimary !== '' ? htmlspecialchars($loginPrimary, ENT_QUOTES) : '#0a1628'; ?>;
         --login-secondary: <?php echo $loginSecondary !== '' ? htmlspecialchars($loginSecondary, ENT_QUOTES) : '#00b4d8'; ?>;
         --login-secondary-rgb: <?php echo hexToRgb($loginSecondary); ?>;
+        --login-police: '<?php echo htmlspecialchars($loginPolice, ENT_QUOTES); ?>', sans-serif;
+        --login-police-taille: <?php echo $loginPoliceTaille !== '' ? htmlspecialchars($loginPoliceTaille, ENT_QUOTES) : '1.15'; ?>rem;
+        --login-titre-taille: <?php echo $loginTitreTaille !== '' ? htmlspecialchars($loginTitreTaille, ENT_QUOTES) : '2.5'; ?>rem;
+        --login-texte-couleur: <?php echo $loginTexteCouleur !== '' ? htmlspecialchars($loginTexteCouleur, ENT_QUOTES) : '#1e293b'; ?>;
+        --login-carte-fond: <?php echo $loginCarteFond !== '' ? htmlspecialchars($loginCarteFond, ENT_QUOTES) : '#ffffff'; ?>;
         <?php if ($loginBgUrl !== ''): ?>--login-bg-img: url('<?php echo htmlspecialchars($loginBgUrl, ENT_QUOTES, 'UTF-8'); ?>');<?php endif; ?>
     }
     </style>
 </head>
 <body class="login-page">
+    <?php if ($loginPreviewRibbon !== null): ?>
+    <div class="preview-ribbon admin-preview-ribbon">
+        <strong>Apercu du design « <?php echo htmlspecialchars($loginPreviewRibbon, ENT_QUOTES, 'UTF-8'); ?> »</strong> — non publie.
+        <a href="<?php echo BASE_URL; ?>/admin/login.php">&times; Voir la page reelle</a>
+    </div>
+    <?php endif; ?>
+    <div class="login-veil" style="background: <?php echo $loginVoile; ?>;" aria-hidden="true"></div>
     <div class="login-deco login-deco-1" aria-hidden="true"></div>
     <div class="login-deco login-deco-2" aria-hidden="true"></div>
     <div class="login-wrapper">
@@ -118,6 +159,6 @@ $loginBgUrl = trim((string)($loginSettings['login_bg_url'] ?? ''));
     <script>
     const BASE_URL = '<?php echo BASE_URL; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=4"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
 </body>
 </html>

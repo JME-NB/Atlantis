@@ -58,5 +58,5 @@ try {
     }
 } catch (PDOException $e) {
     // En cas d'erreur DB, on garde la session telle quelle (deja authentifie)
-    error_log('Auth check DB error: ' . $e->getMessage());
+    logError('ERROR', 'Auth check DB error: ' . $e->getMessage(), 'includes/auth_check.php', 61);
 }

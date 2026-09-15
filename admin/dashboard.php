@@ -6,28 +6,31 @@
  */
 
 require_once __DIR__ . '/../includes/auth_check.php';
+require_once __DIR__ . '/../includes/admin_theme.php';
+require_once __DIR__ . '/../includes/preview.php';
+
+// Apercu d'un design admin non publie (?preview=ID&sig=...)
+$adminPreviewRibbon = null;
+if (isset($_GET['preview'], $_GET['sig'])) {
+    $previewDesign = previewDesign((int) $_GET['preview'], (string) $_GET['sig']);
+    if ($previewDesign !== null && $previewDesign['cible'] === 'admin') {
+        $cfg = $previewDesign['configuration'];
+        if (isset($cfg['settings']) && is_array($cfg['settings'])) {
+            setAdminThemeOverrides($cfg['settings']);
+        }
+        $adminPreviewRibbon = (string) $previewDesign['nom'];
+    }
+}
 
 $pdo = getDB();
 
-// Statistiques
-$stats = [];
-
-// Total demandes
-$stmt = $pdo->query('SELECT COUNT(*) as total FROM applications');
-$stats['total'] = (int) $stmt->fetch()['total'];
-
-// Par type
-$stmt = $pdo->query("SELECT type, COUNT(*) as cnt FROM applications GROUP BY type");
-$stats['by_type'] = [];
+// Statistiques (une seule requete : triple GROUP BY type, statut)
+$stmt = $pdo->query('SELECT type, statut, COUNT(*) AS cnt FROM applications GROUP BY type, statut');
+$stats = ['total' => 0, 'by_type' => [], 'by_statut' => []];
 while ($row = $stmt->fetch()) {
-    $stats['by_type'][$row['type']] = (int) $row['cnt'];
-}
-
-// Par statut
-$stmt = $pdo->query("SELECT statut, COUNT(*) as cnt FROM applications GROUP BY statut");
-$stats['by_statut'] = [];
-while ($row = $stmt->fetch()) {
-    $stats['by_statut'][$row['statut']] = (int) $row['cnt'];
+    $stats['total'] += (int) $row['cnt'];
+    $stats['by_type'][$row['type']] = ($stats['by_type'][$row['type']] ?? 0) + (int) $row['cnt'];
+    $stats['by_statut'][$row['statut']] = ($stats['by_statut'][$row['statut']] ?? 0) + (int) $row['cnt'];
 }
 
 // Dernieres demandes
@@ -44,10 +47,18 @@ $csrf = generateCsrfToken();
     <title>Dashboard - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=6">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
     <?php include __DIR__ . '/sidebar.php'; ?>
+
+    <?php if ($adminPreviewRibbon !== null): ?>
+    <div class="preview-ribbon admin-preview-ribbon">
+        <strong>Apercu du design admin « <?php echo htmlspecialchars($adminPreviewRibbon, ENT_QUOTES, 'UTF-8'); ?> »</strong> — non publie.
+        <a href="<?php echo BASE_URL; ?>/admin/dashboard.php">&times; Voir le dashboard reel</a>
+    </div>
+    <?php endif; ?>
 
     <main class="main-content">
         <header class="page-header">
@@ -58,6 +69,7 @@ $csrf = generateCsrfToken();
                 <h1>Dashboard</h1>
             </div>
             <div class="header-right">
+                <?php echo renderNotificationBellHtml(); ?>
                 <span class="header-date"><?php echo date('d/m/Y'); ?></span>
             </div>
         </header>
@@ -150,6 +162,8 @@ $csrf = generateCsrfToken();
     </main>
 
     <script>const BASE_URL = '<?php echo BASE_URL; ?>';</script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=4"></script>
+    <script>const CSRF_TOKEN = '<?php echo $csrf; ?>';</script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>
