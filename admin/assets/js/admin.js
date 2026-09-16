@@ -14,8 +14,9 @@
 
     if (hamburgerAdmin && sidebar) {
         hamburgerAdmin.addEventListener('click', function() {
-            sidebar.classList.toggle('open');
+            var isOpen = sidebar.classList.toggle('open');
             if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+            if (!isOpen && userBtn && userMenu && closeUserMenu) closeUserMenu();
         });
     }
     if (sidebarOverlay) {
@@ -68,6 +69,17 @@
 
         function repositionUserMenu() {
             if (userMenu.hidden) return;
+
+            // Mobile / tablette : la sidebar est off-canvas (bouton hors ecran).
+            // Le menu est conserve en position fixe (haut-droite) via le CSS :
+            // on neutralise les styles inline recalcules sur le bouton.
+            if (window.innerWidth <= 1024) {
+                userMenu.style.left = '';
+                userMenu.style.top = '';
+                userMenu.style.bottom = '';
+                return;
+            }
+
             var btnRect = userBtn.getBoundingClientRect();
             userMenu.style.left = btnRect.left + btnRect.width + 8 + 'px';
             if (btnRect.bottom + userMenu.offsetHeight > window.innerHeight) {
