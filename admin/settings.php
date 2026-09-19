@@ -86,7 +86,7 @@ function uploadRow(string $type, string $label, string $currentUrl): string
     <title>Parametres - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=13">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=14">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -385,6 +385,10 @@ function uploadRow(string $type, string $label, string $currentUrl): string
             </section>
 
         </div>
+
+        <footer class="app-footer">
+            <span>&copy; <?php echo date('Y'); ?> ATLANTIS v2 &mdash; Tous droits reserves.</span>
+        </footer>
     </main>
 
     <script>
