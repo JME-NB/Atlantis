@@ -956,7 +956,8 @@ body {
     width: 100%;
     max-width: 600px;
     max-height: 85vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     box-shadow: var(--shadow-md);
 }
 
@@ -969,6 +970,7 @@ body {
     justify-content: space-between;
     padding: 20px 24px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .modal-header h2 { font-size: 1.1rem; }
@@ -983,7 +985,12 @@ body {
     line-height: 1;
 }
 
-.modal-body { padding: 24px; }
+.modal-body {
+    padding: 24px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
 
 .modal-footer {
     display: flex;
@@ -991,6 +998,7 @@ body {
     gap: 12px;
     padding: 16px 24px;
     border-top: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .detail-field {
