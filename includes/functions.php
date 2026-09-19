@@ -831,9 +831,9 @@ function statutLabel(string $statut): string
     $labels = [
         'en_attente' => 'En attente',
         'en_cours'   => 'En cours',
-        'valide'     => 'Valide',
-        'refuse'     => 'Refuse',
-        'archive'    => 'Archive',
+        'valide'     => 'Acceptée',
+        'refuse'     => 'Refusée',
+        'archive'    => 'Archivée',
     ];
     return $labels[$statut] ?? $statut;
 }

@@ -22,6 +22,11 @@ while ($row = $stmt->fetch()) {
     $settings[$row['cle']] = $row['valeur'];
 }
 
+// --- Utilisateur connecte (onglets Identifiants / Infos utilisateur) ---
+$stmtUser = $pdo->prepare('SELECT identifiant, nom_complet, telephone, email, adresse, statut_compte FROM users WHERE id = :id LIMIT 1');
+$stmtUser->execute([':id' => getAdminId()]);
+$userProfile = $stmtUser->fetch() ?: [];
+
 $fontChoices = ['Inter', 'Poppins', 'Montserrat', 'Roboto', 'Open Sans', 'Lato'];
 
 function colorField(string $key, string $current): string
@@ -81,7 +86,7 @@ function uploadRow(string $type, string $label, string $currentUrl): string
     <title>Parametres - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=12">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -102,6 +107,63 @@ function uploadRow(string $type, string $label, string $currentUrl): string
         </header>
 
         <div class="page-content">
+
+            <!-- ======= C3 - Barre d'onglets ======= -->
+            <nav class="settings-tabs" id="settingsTabs">
+                <button type="button" class="settings-tab-btn active" data-tab="identifiants">Identifiants &amp; mot de passe</button>
+                <button type="button" class="settings-tab-btn" data-tab="config">Config</button>
+                <button type="button" class="settings-tab-btn" data-tab="infos">Infos utilisateur</button>
+                <button type="button" class="settings-tab-btn" data-tab="generaux">Generaux</button>
+            </nav>
+
+            <!-- ======= Onglet 1 : Identifiants & mot de passe (ex.preferences.php) ======= -->
+            <section class="settings-tab-panel active" id="panel-identifiants">
+                <div class="card">
+                    <div class="card-header"><h2>Identifiants &amp; mot de passe</h2></div>
+                    <div class="card-body">
+                        <form id="preferencesForm" novalidate>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Identifiant</label>
+                                    <input type="text" class="form-input" value="<?php echo htmlspecialchars($userProfile['identifiant'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" disabled>
+                                    <small class="form-help">L'identifiant ne peut pas etre modifie.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Nom complet <span class="req">*</span></label>
+                                    <input type="text" name="nom_complet" class="form-input" value="<?php echo htmlspecialchars($userProfile['nom_complet'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required placeholder="Nom et prenom de l'administrateur">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Enregistrer mes identifiants</button>
+                            </div>
+                        </form>
+
+                        <h3 class="section-title">Changer le mot de passe</h3>
+                        <form id="changePasswordForm" novalidate>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Mot de passe actuel <span class="req">*</span></label>
+                                    <input type="password" name="ancien_mot_de_passe" class="form-input" required autocomplete="current-password" placeholder="Mot de passe actuel">
+                                </div>
+                                <div class="form-group">
+                                    <label>Nouveau mot de passe <span class="req">*</span></label>
+                                    <input type="password" name="nouveau_mot_de_passe" class="form-input" required minlength="6" autocomplete="new-password" placeholder="8 caracteres minimum">
+                                </div>
+                                <div class="form-group">
+                                    <label>Confirmation <span class="req">*</span></label>
+                                    <input type="password" name="confirmation" class="form-input" required autocomplete="new-password" placeholder="Repeter le nouveau mot de passe">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Mettre a jour le mot de passe</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ======= Onglet 2 : Config (contenu existant) ======= -->
+            <section class="settings-tab-panel" id="panel-config">
 
             <div class="card">
                 <div class="card-header"><h2>Identite &amp; Landing</h2></div>
@@ -278,6 +340,50 @@ function uploadRow(string $type, string $label, string $currentUrl): string
                 </div>
             </div>
 
+            </section>
+
+            <!-- ======= Onglet 3 : Infos utilisateur (telephone obligatoire, email, adresse) ======= -->
+            <section class="settings-tab-panel" id="panel-infos">
+                <div class="card">
+                    <div class="card-header"><h2>Infos utilisateur</h2></div>
+                    <div class="card-body">
+                        <form id="infosForm" novalidate>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Telephone <span class="req">*</span></label>
+                                    <input type="tel" name="telephone" class="form-input" value="<?php echo htmlspecialchars($userProfile['telephone'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required placeholder="06 XX XX XX XX">
+                                    <small class="form-help">Obligatoire - utilise pour les notifications et la fiche de contact.</small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" name="email" class="form-input" value="<?php echo htmlspecialchars($userProfile['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" placeholder="contact@atlantis.fr">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Adresse</label>
+                                    <input type="text" name="adresse" class="form-input" value="<?php echo htmlspecialchars($userProfile['adresse'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" placeholder="Adresse postale">
+                                </div>
+                            </div>
+                            <div class="section-title">Infos de contact utilisees sur la landing et le formulaire de contact (rubriques C4 - a completer avec l'adresse).</div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary" id="saveInfosBtn">Enregistrer mes infos</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ======= Onglet 4 : Generaux (placeholder) ======= -->
+            <section class="settings-tab-panel" id="panel-generaux">
+                <div class="card">
+                    <div class="card-header"><h2>Reglages generaux</h2></div>
+                    <div class="card-body">
+                        <p class="info-text">Actions a venir : droit de modification des rubriques par les gestonnaires, journal d'audit plus fin, export des parametres.</p>
+                    </div>
+                </div>
+            </section>
+
         </div>
     </main>
 
@@ -285,7 +391,7 @@ function uploadRow(string $type, string $label, string $currentUrl): string
         var BASE_URL = '<?php echo BASE_URL; ?>';
         var CSRF_TOKEN = '<?php echo $csrf; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js"></script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

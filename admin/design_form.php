@@ -46,7 +46,7 @@ $fieldTypeLabels = [
     <title>Editer le formulaire - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=12">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -62,7 +62,7 @@ $fieldTypeLabels = [
             </div>
             <div class="header-right">
                 <?php echo renderNotificationBellHtml(); ?>
-                <a class="btn btn-outline" href="<?php echo BASE_URL; ?>/index.php" target="_blank" rel="noopener">Voir la landing page</a>
+                <a class="btn btn-outline" href="<?php echo BASE_URL; ?>/public/" target="_blank" rel="noopener">Voir la landing page</a>
                 <?php if (!$readonly): ?>
                 <button class="btn btn-primary" id="publishFormBtn">Publier le formulaire</button>
                 <?php endif; ?>
@@ -157,7 +157,7 @@ $fieldTypeLabels = [
     const READONLY = <?php echo $readonly ? 'true' : 'false'; ?>;
     const FIELD_CUSTOM_COUNTER = <?php echo (int) $customCounter; ?>;
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
     <script>
     (function() {

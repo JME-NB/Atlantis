@@ -267,7 +267,7 @@ if ($policeC !== $policeT) {
 <?php if ($previewRibbon !== null): ?>
 <div class="preview-ribbon">
     <strong>Apercu du design « <?php echo htmlspecialchars($previewRibbon, ENT_QUOTES, 'UTF-8'); ?> »</strong> — non publie.
-    <a href="<?php echo BASE_URL; ?>/index.php">&times; Retour au site</a>
+    <a href="<?php echo BASE_URL; ?>/public/">&times; Retour au site</a>
 </div>
 <?php endif; ?>
 

@@ -19,7 +19,7 @@ $csrf = generateCsrfToken();
     <title>Logs - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=12">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -83,7 +83,7 @@ $csrf = generateCsrfToken();
     const BASE_URL = '<?php echo BASE_URL; ?>';
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

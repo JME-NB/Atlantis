@@ -1,7 +1,7 @@
 <?php
 /**
  * ============================================================================
- * ATLANTIS v2 - Suivi des candidatures (toutes)
+ * ATLANTIS v2 - Candidatures en cours
  * ============================================================================
  */
 
@@ -16,7 +16,7 @@ $csrf = generateCsrfToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidatures - ATLANTIS Admin</title>
+    <title>Candidatures en cours - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=12">
@@ -31,7 +31,7 @@ $csrf = generateCsrfToken();
                 <button class="hamburger-admin" id="hamburgerAdmin" aria-label="Ouvrir le menu">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
-                <h1>Suivi des candidatures</h1>
+                <h1>Candidatures en cours</h1>
             </div>
             <div class="header-right">
                 <?php echo renderNotificationBellHtml(); ?>
@@ -39,30 +39,11 @@ $csrf = generateCsrfToken();
         </header>
 
         <div class="page-content">
-            <!-- Filtres -->
             <div class="filters-bar">
                 <div class="filter-group">
-                    <input type="text" id="searchInput" class="form-input" placeholder="Rechercher (nom, tel, email, entreprise)...">
-                </div>
-                <div class="filter-group">
-                    <select id="typeFilter" class="form-select">
-                        <option value="">Tous les types</option>
-                        <option value="partenariat">Partenariat</option>
-                        <option value="recrutement">Recrutement</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <select id="statutFilter" class="form-select">
-                        <option value="">Tous les statuts</option>
-                        <option value="en_attente">En attente</option>
-                        <option value="en_cours">En cours</option>
-                        <option value="valide">Acceptée</option>
-                        <option value="refuse">Refusée</option>
-                    </select>
+                    <input type="text" id="searchInput" class="form-input" placeholder="Rechercher...">
                 </div>
             </div>
-
-            <!-- Tableau -->
             <div class="card">
                 <div class="table-responsive">
                     <table class="data-table" id="applicationsTable">
@@ -80,9 +61,7 @@ $csrf = generateCsrfToken();
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="applicationsBody">
-                            <tr><td colspan="10" class="text-center">Chargement...</td></tr>
-                        </tbody>
+                        <tbody id="applicationsBody"><tr><td colspan="10" class="text-center">Chargement...</td></tr></tbody>
                     </table>
                 </div>
                 <div class="pagination" id="pagination"></div>
@@ -90,25 +69,20 @@ $csrf = generateCsrfToken();
         </div>
     </main>
 
-    <!-- Modal detail -->
     <div class="modal-overlay" id="detailModal" hidden>
         <div class="modal">
-            <div class="modal-header">
-                <h2>Demande #<span id="modalId"></span></h2>
-                <button class="modal-close" id="closeModal">&times;</button>
-            </div>
+            <div class="modal-header"><h2>Demande #<span id="modalId"></span></h2><button class="modal-close" id="closeModal">&times;</button></div>
             <div class="modal-body" id="modalBody"></div>
             <div class="modal-footer" id="modalFooter"></div>
         </div>
     </div>
 
-    <!-- Toast -->
     <div id="toastContainer" class="toast-container"></div>
 
     <script>
     const BASE_URL = '<?php echo BASE_URL; ?>';
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
-    const FILTER_STATUT = 'en_attente,en_cours,valide,refuse';
+    const FILTER_STATUT = 'en_cours';
     </script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>

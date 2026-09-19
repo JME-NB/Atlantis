@@ -5,6 +5,12 @@
 (function() {
     'use strict';
 
+    // Garde anti double-chargement : si le script est inclus 2 fois dans une
+    // meme page, on ne rebinde pas les listeners (sinon menus/toggles se ferment
+    // aussitot qu'ils s'ouvrent).
+    if (document.documentElement.hasAttribute('data-admin-js-loaded')) return;
+    document.documentElement.setAttribute('data-admin-js-loaded', '1');
+
     // =========================================================================
     // SIDEBAR MOBILE
     // =========================================================================
@@ -70,13 +76,15 @@
         function repositionUserMenu() {
             if (userMenu.hidden) return;
 
-            // Mobile / tablette : la sidebar est off-canvas (bouton hors ecran).
-            // Le menu est conserve en position fixe (haut-droite) via le CSS :
-            // on neutralise les styles inline recalcules sur le bouton.
+            // Mobile / tablette : menu flottant rendu juste au-dessus du bouton
+            // utilisateur (la sidebar etant ouverte au moment du clic).
             if (window.innerWidth <= 1024) {
-                userMenu.style.left = '';
-                userMenu.style.top = '';
-                userMenu.style.bottom = '';
+                var btnRect = userBtn.getBoundingClientRect();
+                var menuH = userMenu.offsetHeight;
+                userMenu.style.width = btnRect.width + 'px';
+                userMenu.style.left = btnRect.left + 'px';
+                userMenu.style.top = Math.max(8, Math.round(btnRect.top - menuH - 8)) + 'px';
+                userMenu.style.bottom = 'auto';
                 return;
             }
 
@@ -178,6 +186,8 @@
     if (applicationsBody) {
         var currentApplicationsPage = 1;
         var searchTimeout = null;
+        var currentSort = 'created_at';
+        var currentSortDir = 'desc';
 
         function loadApplications(page) {
             currentApplicationsPage = page || 1;
@@ -191,12 +201,19 @@
 
             if (search && search.value) params.set('search', search.value);
             if (typeF && typeF.value) params.set('type', typeF.value);
-            if (typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT) {
-                params.set('statut', FILTER_STATUT);
-                if (statutF) statutF.value = FILTER_STATUT;
-            } else if (statutF && statutF.value) {
-                params.set('statut', statutF.value);
+
+            // FILTER_STATUT = perimetre fixe de la page (ex. "tout sauf archives"),
+            // le dropdown statut (page "Toutes") permet d'affiner dessous.
+            var st = null;
+            if (statutF && statutF.value) {
+                st = statutF.value;
+            } else if (typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT) {
+                st = FILTER_STATUT;
             }
+            if (st) params.set('statut', st);
+
+            params.set('sort', currentSort);
+            params.set('dir', currentSortDir);
 
             fetch(BASE_URL + '/api/applications.php?' + params.toString())
             .then(function(r) { return r.json(); })
@@ -206,6 +223,35 @@
                 }
             });
         }
+
+        // Tri par en-tete de colonne (ascendant / descendant)
+        var sortHeaders = Array.prototype.slice.call(document.querySelectorAll('#applicationsTable thead th[data-sort]'));
+        sortHeaders.forEach(function(th) {
+            if (th.dataset.sort === currentSort) {
+                th.classList.add('active-sort');
+                if (currentSortDir === 'desc') th.classList.add('sort-desc');
+            }
+            th.addEventListener('click', function() {
+                var col = this.dataset.sort;
+                if (currentSort === col) {
+                    currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort = col;
+                    currentSortDir = 'asc';
+                }
+                renderSortIndicators();
+                loadApplications(1);
+            });
+        });
+
+        function renderSortIndicators() {
+            sortHeaders.forEach(function(th) {
+                th.classList.toggle('active-sort', th.dataset.sort === currentSort);
+                th.classList.toggle('sort-desc', th.dataset.sort === currentSort && currentSortDir === 'desc');
+            });
+        }
+
+        var isArchiveListing = typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT === 'archive';
 
         function renderApplicationsTable(items, total, page, pages) {
             if (!items || items.length === 0) {
@@ -230,7 +276,12 @@
                 html += '<td>' + formatDate(app.created_at) + '</td>';
                 html += '<td>';
                 html += '<button class="btn btn-sm btn-outline detail-btn" data-id="' + safeId(app.id) + '">Voir</button> ';
-                html += '<button class="btn btn-sm btn-danger delete-btn" data-id="' + safeId(app.id) + '" data-nom="' + escHtml(app.nom) + '">X</button>';
+                if (isArchiveListing) {
+                    html += '<button class="btn btn-sm btn-outline restore-row-btn" data-id="' + safeId(app.id) + '" data-nom="' + escHtml(app.nom) + '">Restaurer</button> ';
+                    html += '<button class="btn btn-sm btn-danger permdel-row-btn" data-id="' + safeId(app.id) + '" data-nom="' + escHtml(app.nom) + '">Supprimer definitivement</button>';
+                } else {
+                    html += '<button class="btn btn-sm btn-danger delete-btn" data-id="' + safeId(app.id) + '" data-nom="' + escHtml(app.nom) + '">X</button>';
+                }
                 html += '</td>';
                 html += '</tr>';
             });
@@ -254,10 +305,22 @@
             });
             applicationsBody.querySelectorAll('.delete-btn').forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    if (confirm('Voulez-vous vraiment archiver cette demande ? Les donnees et les fichiers seront conserves. Seul un administrateur pourra la restaurer ou la supprimer definitivement.')) {
-                        deleteApplication(this.dataset.id);
-                    }
+                    var btnEl = this;
+                    showConfirmDialog({
+                        title: 'Archiver cette demande ?',
+                        message: 'La demande de ' + btnEl.dataset.nom + ' ne sera plus visible dans le suivi et passera dans les archives. Les donnees et les fichiers seront conserves. Seul un administrateur pourra la restaurer ou la supprimer definitivement.',
+                        okLabel: 'Archiver',
+                        okType: 'danger',
+                        buttons: [{ label: 'Annuler', type: 'outline', ok: null }],
+                        ok: function() { deleteApplication(btnEl.dataset.id); }
+                    });
                 });
+            });
+            applicationsBody.querySelectorAll('.restore-row-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() { openRestoreConfirm(this.dataset.id, 'la demande de ' + this.dataset.nom); });
+            });
+            applicationsBody.querySelectorAll('.permdel-row-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() { openPermanentDeleteConfirm(this.dataset.id, 'la demande de ' + this.dataset.nom); });
             });
         }
 
@@ -309,15 +372,27 @@
             html += detailField('Modifie le', formatDate(app.updated_at));
             document.getElementById('modalBody').innerHTML = html;
 
-            // Footer avec changement de statut (ou actions archivees)
+            // Footer : actions selon la page (archivees / terminees / suivi)
             var footerHtml = '';
-            if (typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT === 'archive') {
+            var isArchivePage = typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT === 'archive';
+            var isTerminatedPage = isArchivePage
+                ? false
+                : (typeof FILTER_STATUT !== 'undefined' && (FILTER_STATUT === 'valide' || FILTER_STATUT === 'refuse'));
+
+            if (isArchivePage) {
                 footerHtml = '<div style="display:flex;gap:8px;align-items:center;width:100%">';
                 footerHtml += '<button class="btn btn-primary" id="restoreBtn" data-id="' + safeId(app.id) + '">Restaurer</button>';
                 footerHtml += '<button class="btn btn-danger" id="permanentDeleteBtn" data-id="' + safeId(app.id) + '">Supprimer definitivement</button>';
                 footerHtml += '</div>';
+            } else if (isTerminatedPage) {
+                footerHtml = '<div style="display:flex;gap:8px;align-items:center;width:100%">';
+                footerHtml += '<span class="text-muted" style="flex:1;font-size:.85rem">Cette candidature est '
+                    + (FILTER_STATUT === 'valide' ? 'acceptee' : 'refusee')
+                    + ', elle ne peut plus changer de statut.</span>';
+                footerHtml += '<button class="btn btn-danger" id="archiveModalBtn" data-id="' + safeId(app.id) + '">Archiver</button>';
+                footerHtml += '</div>';
             } else {
-                var statuses = ['en_attente', 'en_cours', 'valide', 'refuse', 'archive'];
+                var statuses = ['en_attente', 'en_cours', 'valide', 'refuse'];
                 footerHtml = '<div style="display:flex;gap:8px;align-items:center;width:100%">';
                 footerHtml += '<select id="modalStatus" class="form-select" style="flex:1">';
                 statuses.forEach(function(s) {
@@ -331,18 +406,34 @@
 
             document.getElementById('detailModal').hidden = false;
 
-            if (typeof FILTER_STATUT !== 'undefined' && FILTER_STATUT === 'archive') {
+            if (isArchivePage) {
                 var restoreBtn = document.getElementById('restoreBtn');
                 var permDelBtn = document.getElementById('permanentDeleteBtn');
                 if (restoreBtn) restoreBtn.addEventListener('click', function() {
-                    restoreApplication(this.dataset.id);
+                    openRestoreConfirm(this.dataset.id, 'cette demande');
                 });
                 if (permDelBtn) permDelBtn.addEventListener('click', function() {
-                    permanentDeleteApplication(this.dataset.id);
+                    openPermanentDeleteConfirm(this.dataset.id, 'cette demande');
+                });
+            } else if (isTerminatedPage) {
+                document.getElementById('archiveModalBtn').addEventListener('click', function() {
+                    var btnEl = this;
+                    showConfirmDialog({
+                        title: 'Archiver cette demande ?',
+                        message: 'Cette candidature passe dans les archives. Elle n\u2019apparaitra plus dans le suivi. Seul un administrateur pourra la restaurer ou la supprimer definitivement.',
+                        okLabel: 'Archiver',
+                        okType: 'danger',
+                        buttons: [{ label: 'Annuler', type: 'outline', ok: null }],
+                        ok: function() { deleteApplication(btnEl.dataset.id); }
+                    });
                 });
             } else {
                 document.getElementById('saveStatusBtn').addEventListener('click', function() {
                     var newStatut = document.getElementById('modalStatus').value;
+                    if (newStatut === app.statut) {
+                        document.getElementById('detailModal').hidden = true;
+                        return;
+                    }
                     updateStatus(this.dataset.id, newStatut);
                 });
             }
@@ -414,11 +505,15 @@
 
     // =========================================================================
     // RESTORE APPLICATION (from archivees)
+    // retour : "precedent" -> statut d'avant archivage | "attente" -> en_attente
     // =========================================================================
-    function restoreApplication(id) {
+    function restoreApplication(id, retour) {
+        var fd = new FormData();
+        fd.append('retour', retour || 'attente');
         fetch(BASE_URL + '/api/applications.php?action=restore&id=' + id, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN }
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN },
+            body: fd
         })
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -436,7 +531,6 @@
     // PERMANENT DELETE APPLICATION (from archivees)
     // =========================================================================
     function permanentDeleteApplication(id) {
-        if (!confirm('Voulez-vous vraiment supprimer cette demande definitivement ? Cette action est irreversible et supprimera toutes les donnees y compris les fichiers joints.')) return;
         fetch(BASE_URL + '/api/applications.php?action=permanent_delete&id=' + id, {
             method: 'DELETE',
             headers: { 'X-CSRF-TOKEN': CSRF_TOKEN }
@@ -450,6 +544,116 @@
             } else {
                 showToast(data.message, true);
             }
+        });
+    }
+
+    // =========================================================================
+    // POPUP DE CONFIRMATION (respecte le theme via les variables CSS)
+    // =========================================================================
+    function showConfirmDialog(opts) {
+        var title    = opts.title || 'Confirmation';
+        var message  = opts.message || '';
+        var okLabel  = opts.okLabel || 'OK';
+        var okType   = opts.okType || 'danger'; // danger | primary | outline
+        var onOk     = opts.ok || null;
+        var extra    = opts.buttons || [];
+
+        var overlay = document.createElement('div');
+        overlay.className = 'modal-overlay confirm-overlay';
+
+        var dialog = document.createElement('div');
+        dialog.className = 'modal modal-sm confirm-modal';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+
+        var iconColor = okType === 'danger' ? 'var(--danger)' : 'var(--secondary)';
+        var iconBg    = okType === 'danger' ? '#fee2e2' : '#ccfbf1';
+        var iconPath  = okType === 'danger'
+            ? '<path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>'
+            : '<path d="M9 12l2 2 4-4m5.62-4A11 11 0 1 1 12 3a11 11 0 0 1 9.62 5z"/>';
+
+        dialog.innerHTML =
+            '<div class="modal-header">'
+            + '<h2><span class="confirm-icon" style="background:' + iconBg + ';color:' + iconColor + '">'
+            + '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + iconPath + '</svg>'
+            + '</span><span>' + escHtml(title) + '</span></h2>'
+            + '<button type="button" class="modal-close" aria-label="Fermer">&times;</button>'
+            + '</div>'
+            + '<div class="modal-body"><p>' + escHtml(message).replace(/\n/g, '<br>') + '</p></div>'
+            + '<div class="modal-footer"><div class="confirm-buttons"></div></div>';
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        var btnContainer = dialog.querySelector('.confirm-buttons');
+
+        function close() {
+            if (overlay.classList.contains('is-closing')) return;
+            document.removeEventListener('keydown', onKey);
+            overlay.classList.add('is-closing');
+            setTimeout(function() { overlay.remove(); }, 180);
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') close();
+        }
+        document.addEventListener('keydown', onKey);
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) close();
+        });
+        dialog.querySelector('.modal-close').addEventListener('click', close);
+
+        function addButton(label, type, cb) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn ' + (type === 'primary' ? 'btn-primary' : type === 'danger' ? 'btn-danger' : 'btn-outline');
+            b.textContent = label;
+            b.addEventListener('click', function() {
+                close();
+                if (cb) cb();
+            });
+            btnContainer.appendChild(b);
+            return b;
+        }
+
+        extra.forEach(function(eb) {
+            addButton(eb.label, eb.type, eb.ok);
+        });
+        addButton(okLabel, okType, onOk);
+
+        // Focus initial : le bouton "Annuler" si present, sinon le premier
+        var annulerBtn = null;
+        btnContainer.querySelectorAll('button').forEach(function(b) {
+            if (b.textContent.toLowerCase().indexOf('annuler') !== -1) annulerBtn = b;
+        });
+        var first = annulerBtn || btnContainer.querySelector('button');
+        if (first) first.focus();
+    }
+
+    function openRestoreConfirm(id, mention) {
+        showConfirmDialog({
+            title: 'Restaurer la Candidature #' + id,
+            message: 'Voulez-vous restaurer ' + mention + '  au statut précédent ?\n'
+                ,
+            okLabel: 'Annuler',
+            okType: 'outline',
+            buttons: [
+                { label: 'Oui', type: 'primary', ok: function() { restoreApplication(id, 'precedent'); } },
+                { label: 'Non', type: 'outline', ok: function() { restoreApplication(id, 'attente'); } }
+            ]
+        });
+    }
+
+    function openPermanentDeleteConfirm(id, nom) {
+        showConfirmDialog({
+            title: 'Suppression definitive',
+            message: 'Supprimer definitivement la demande de ' + nom + ' ?\n'
+                + 'Cette action est irreversible : toutes les donnees ainsi que les fichiers joints seront effaces de la base de donnees.',
+            okLabel: 'Supprimer definitivement',
+            okType: 'danger',
+            buttons: [{ label: 'Annuler', type: 'outline', ok: null }],
+            ok: function() { permanentDeleteApplication(id); }
         });
     }
 
@@ -1568,7 +1772,7 @@
     }
 
     function statutLabel(statut) {
-        var labels = { en_attente: 'En attente', en_cours: 'En cours', valide: 'Valide', refuse: 'Refuse', archive: 'Archive' };
+        var labels = { en_attente: 'En attente', en_cours: 'En cours', valide: 'Acceptée', refuse: 'Refusée', archive: 'Archivée' };
         return labels[statut] || statut;
     }
 
@@ -1588,4 +1792,30 @@
         return 'secondary';
     }
 
+})();
+
+/* ============================================================================
+ * C3 - Bascule des onglets Parametres (settings-tabs)
+ * ============================================================================ */
+(function () {
+    var tabsNav = document.getElementById('settingsTabs');
+    if (!tabsNav) return;
+
+    var btns = tabsNav.querySelectorAll('.settings-tab-btn[data-tab]');
+    var panels = document.querySelectorAll('.settings-tab-panel');
+
+    function showTab(tabId) {
+        for (var i = 0; i < btns.length; i++) {
+            btns[i].classList.toggle('active', btns[i].getAttribute('data-tab') === tabId);
+        }
+        for (var j = 0; j < panels.length; j++) {
+            panels[j].classList.toggle('active', panels[j].id === 'panel-' + tabId);
+        }
+    }
+
+    for (var k = 0; k < btns.length; k++) {
+        btns[k].addEventListener('click', function () {
+            showTab(this.getAttribute('data-tab'));
+        });
+    }
 })();

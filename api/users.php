@@ -39,6 +39,12 @@ switch ($action) {
     case 'update_preferences':
         handleUpdatePreferences();
         break;
+    case 'update_statut':
+        handleUpdateStatut();
+        break;
+    case 'update_infos':
+        handleUpdateInfos();
+        break;
     default:
         jsonError(400, 'Action inconnue.');
 }
@@ -54,8 +60,8 @@ function handleList(): void
 
     $pdo  = getDB();
     $stmt = $pdo->query(
-        'SELECT id, identifiant, nom_complet, role, is_super_admin, must_change_password, statut_compte, deleted_at, created_at
-         FROM users ORDER BY created_at DESC'
+        'SELECT id, identifiant, nom_complet, telephone, email, adresse, role, is_super_admin, must_change_password, statut_compte, deleted_at, created_at
+        FROM users ORDER BY created_at DESC'
     );
     $users = $stmt->fetchAll();
 
@@ -366,6 +372,109 @@ function handleUpdatePreferences(): void
         jsonSuccess('Preferences mises a jour.');
     } catch (PDOException $e) {
         logError('ERROR', 'Update preferences error: ' . $e->getMessage(), 'api/users.php', 368);
+        jsonError(500, 'Erreur interne.');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// UPDATE STATUT COMPTE (Activer / Desactiver) — C4
+// ---------------------------------------------------------------------------
+function handleUpdateStatut(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jsonError(405, 'Methode non autorisee.');
+    if (!isLoggedIn()) jsonError(401, 'Acces refuse.');
+    if (!hasPermission('admin')) jsonError(403, 'Permissions insuffisantes.');
+
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) jsonError(403, 'Token CSRF invalide.');
+
+    $input   = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) $input = $_POST;
+    $userId  = (int)($input['user_id'] ?? 0);
+    $statut  = $input['statut'] ?? '';
+    $adminId = getAdminId();
+
+    if ($userId <= 0) jsonError(400, 'Utilisateur invalide.');
+    if (!in_array($statut, ['actif', 'desactive'], true)) jsonError(400, 'Statut invalide.');
+
+    try {
+        $pdo = getDB();
+
+        if ($userId === $adminId) {
+            jsonError(400, 'Vous ne pouvez pas changer le statut de votre propre compte.');
+        }
+
+        $stmt = $pdo->prepare('SELECT is_super_admin FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $userId]);
+        $target = $stmt->fetch();
+
+        if (!$target || $target['is_super_admin']) {
+            jsonError(400, 'Le compte super-administrateur est protege.');
+        }
+
+        $stmt = $pdo->prepare('UPDATE users SET statut_compte = :statut WHERE id = :id');
+        $stmt->execute([':statut' => $statut, ':id' => $userId]);
+
+        logAudit('update_statut', 'user', $userId, 'Statut du compte passe a : ' . $statut);
+        jsonSuccess('Statut du compte mis a jour.');
+    } catch (PDOException $e) {
+        logError('ERROR', 'Update statut error: ' . $e->getMessage(), 'api/users.php');
+        jsonError(500, 'Erreur interne.');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// UPDATE INFORMATIONS UTILISATEUR (telephone, email, adresse) — C4
+// ---------------------------------------------------------------------------
+function handleUpdateInfos(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') jsonError(405, 'Methode non autorisee.');
+    if (!isLoggedIn()) jsonError(401, 'Acces refuse.');
+
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!verifyCsrfToken($csrfToken)) jsonError(403, 'Token CSRF invalide.');
+
+    $input     = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) $input = $_POST;
+    $userId    = (int)($input['user_id'] ?? 0);
+    $telephone = clean($input['telephone'] ?? '');
+    $email     = clean($input['email'] ?? '');
+    $adresse   = clean($input['adresse'] ?? '');
+    $adminId   = getAdminId();
+
+    if ($userId <= 0) jsonError(400, 'Utilisateur invalide.');
+
+    // Un gestionnaire ne peut modifier que son propre profil
+    if (!$adminId || ($userId !== $adminId && !hasPermission('admin'))) {
+        jsonError(403, 'Permissions insuffisantes.');
+    }
+
+    if ($telephone === '') {
+        jsonError(400, 'Le telephone est obligatoire.');
+    }
+
+    try {
+        $pdo = getDB();
+        $stmt = $pdo->prepare(
+            'SELECT is_super_admin FROM users WHERE id = :id AND deleted_at IS NULL LIMIT 1'
+        );
+        $stmt->execute([':id' => $userId]);
+        if (!$stmt->fetch()) jsonError(404, 'Utilisateur introuvable.');
+
+        $stmt = $pdo->prepare(
+            'UPDATE users SET telephone = :telephone, email = :email, adresse = :adresse WHERE id = :id'
+        );
+        $stmt->execute([
+            ':telephone' => $telephone,
+            ':email'     => $email ?: null,
+            ':adresse'   => $adresse ?: null,
+            ':id'        => $userId,
+        ]);
+
+        logAudit('update_infos', 'user', $userId, 'Informations de contact mises a jour.');
+        jsonSuccess('Informations mises a jour.');
+    } catch (PDOException $e) {
+        logError('ERROR', 'Update infos error: ' . $e->getMessage(), 'api/users.php');
         jsonError(500, 'Erreur interne.');
     }
 }

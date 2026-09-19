@@ -47,7 +47,7 @@ $csrf = generateCsrfToken();
     <title>Dashboard - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=12">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -118,9 +118,9 @@ $csrf = generateCsrfToken();
             <!-- Details statuts -->
             <div class="stats-row">
                 <div class="stat-mini"><span class="badge badge-info"><?php echo $stats['by_statut']['en_cours'] ?? 0; ?></span> En cours</div>
-                <div class="stat-mini"><span class="badge badge-success"><?php echo $stats['by_statut']['valide'] ?? 0; ?></span> Validees</div>
-                <div class="stat-mini"><span class="badge badge-danger"><?php echo $stats['by_statut']['refuse'] ?? 0; ?></span> Refusees</div>
-                <div class="stat-mini"><span class="badge badge-secondary"><?php echo $stats['by_statut']['archive'] ?? 0; ?></span> Archivees</div>
+                <div class="stat-mini"><span class="badge badge-success"><?php echo $stats['by_statut']['valide'] ?? 0; ?></span> Acceptées</div>
+                <div class="stat-mini"><span class="badge badge-danger"><?php echo $stats['by_statut']['refuse'] ?? 0; ?></span> Refusées</div>
+                <div class="stat-mini"><span class="badge badge-secondary"><?php echo $stats['by_statut']['archive'] ?? 0; ?></span> Archivées</div>
             </div>
 
             <!-- Dernieres demandes -->
@@ -163,7 +163,7 @@ $csrf = generateCsrfToken();
 
     <script>const BASE_URL = '<?php echo BASE_URL; ?>';</script>
     <script>const CSRF_TOKEN = '<?php echo $csrf; ?>';</script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

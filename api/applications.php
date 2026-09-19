@@ -6,12 +6,12 @@
  *
  * Endpoints :
  *   POST   ?action=create     (public - formulaire)
- *   GET    ?action=list       (admin/gestionnaire)
+ *   GET    ?action=list       (admin/gestionnaire) [type, statut multi-CSV, search, page, sort, dir]
  *   GET    ?action=detail&id= (admin/gestionnaire)
- *   POST   ?action=update_status&id= (admin/gestionnaire)
- *   DELETE ?action=delete&id= (admin/gestionnaire) -> archive (soft delete)
+ *   POST   ?action=update_status&id= (admin/gestionnaire) [statut] - archive interdit via ce endpoint
+ *   DELETE ?action=delete&id= (admin/gestionnaire) -> archive (soft delete, memorise statut_precedent)
  *   DELETE ?action=permanent_delete&id= (admin uniquement)
- *   POST   ?action=restore&id= (admin uniquement)
+ *   POST   ?action=restore&id= (admin uniquement) [retour=precedent|attente]
  * ============================================================================
  */
 
@@ -492,6 +492,17 @@ function handleList(): void
     $limit  = 20;
     $offset = ($page - 1) * $limit;
 
+    // Tri par colonnes (whitelist stricte contre toute injection)
+    $sortColumns = ['id', 'nom', 'prenom', 'telephone', 'entreprise', 'type', 'statut', 'created_at'];
+    $sort = $_GET['sort'] ?? 'created_at';
+    if (!in_array($sort, $sortColumns, true)) {
+        $sort = 'created_at';
+    }
+    $dir = strtolower((string)($_GET['dir'] ?? 'desc'));
+    if (!in_array($dir, ['asc', 'desc'], true)) {
+        $dir = 'desc';
+    }
+
     $where  = [];
     $params = [];
 
@@ -538,7 +549,7 @@ function handleList(): void
     $dataSQL = "SELECT applications.*,
                        (SELECT COUNT(*) FROM application_pieces p WHERE p.application_id = applications.id) AS pieces_count
                 FROM applications $whereSQL
-                ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+                ORDER BY $sort $dir, id $dir LIMIT :limit OFFSET :offset";
     $stmt    = $pdo->prepare($dataSQL);
     foreach ($params as $k => $v) {
         $stmt->bindValue($k, $v);
@@ -668,6 +679,17 @@ function handleUpdateStatus(): void
             jsonError(404, 'Demande introuvable.');
         }
 
+        // L'archivage passait par le statut : il doit passer par la suppression (popup de confirmation)
+        if ($statut === 'archive') {
+            jsonError(400, 'Utilisez la suppression pour archiver une candidature.');
+        }
+
+        // Une candidature acceptee ou refusee est definitive : plus aucun changement de statut
+        if (in_array($current['statut'], ['valide', 'refuse'], true)) {
+            $terme = $current['statut'] === 'valide' ? 'acceptee' : 'refusee';
+            jsonError(400, 'Cette candidature est ' . $terme . ', elle ne peut plus changer de statut. Elle peut uniquement etre archivee.');
+        }
+
         $stmt = $pdo->prepare('UPDATE applications SET statut = :statut WHERE id = :id');
         $stmt->execute([':statut' => $statut, ':id' => $id]);
 
@@ -724,7 +746,7 @@ function handleDelete(): void
     try {
         $pdo = getDB();
 
-        $stmt = $pdo->prepare('SELECT nom, prenom, type FROM applications WHERE id = :id LIMIT 1');
+        $stmt = $pdo->prepare('SELECT nom, prenom, type, statut FROM applications WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $id]);
         $current = $stmt->fetch();
 
@@ -733,8 +755,10 @@ function handleDelete(): void
         }
 
         // Soft delete : passage au statut "archive" (les fichiers sont conserves)
-        $stmt = $pdo->prepare('UPDATE applications SET statut = "archive", updated_at = NOW() WHERE id = :id');
-        $stmt->execute([':id' => $id]);
+        // On memorise le statut d'avant archivage pour permettre une restauration
+        // au statut precedent (ou un retour simple en "en_attente").
+        $stmt = $pdo->prepare('UPDATE applications SET statut = "archive", statut_precedent = :statut_precedent, updated_at = NOW() WHERE id = :id');
+        $stmt->execute([':id' => $id, ':statut_precedent' => $current['statut']]);
 
         logAudit(
             'delete_application',
@@ -859,10 +883,20 @@ function handleRestore(): void
         jsonError(400, 'Identifiant invalide.');
     }
 
+    // Mode de restauration :
+    //   "precedent" -> retour au statut d'avant archivage (si renseigne, sinon en_attente)
+    //   "attente"   -> retour systematique en "en_attente"
+    $input   = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) $input = $_POST;
+    $retour  = $input['retour'] ?? 'precedent';
+    if (!in_array($retour, ['precedent', 'attente'], true)) {
+        $retour = 'precedent';
+    }
+
     try {
         $pdo = getDB();
 
-        $stmt = $pdo->prepare('SELECT nom, prenom, type FROM applications WHERE id = :id LIMIT 1');
+        $stmt = $pdo->prepare('SELECT nom, prenom, type, statut, statut_precedent FROM applications WHERE id = :id LIMIT 1');
         $stmt->execute([':id' => $id]);
         $current = $stmt->fetch();
 
@@ -870,14 +904,20 @@ function handleRestore(): void
             jsonError(404, 'Demande introuvable.');
         }
 
-        $stmt = $pdo->prepare('UPDATE applications SET statut = "en_attente", updated_at = NOW() WHERE id = :id');
-        $stmt->execute([':id' => $id]);
+        if ($retour === 'precedent' && !empty($current['statut_precedent'])) {
+            $nouveauStatut = $current['statut_precedent'];
+        } else {
+            $nouveauStatut = 'en_attente';
+        }
+
+        $stmt = $pdo->prepare('UPDATE applications SET statut = :statut, statut_precedent = NULL, updated_at = NOW() WHERE id = :id');
+        $stmt->execute([':id' => $id, ':statut' => $nouveauStatut]);
 
         logAudit(
             'restore_application',
             'application',
             $id,
-            'Demande restauree : ' . $current['nom'] . ' ' . ($current['prenom'] ?? '') . ' (' . $current['type'] . ')'
+            'Demande restauree : ' . $current['nom'] . ' ' . ($current['prenom'] ?? '') . ' (' . $current['type'] . ') -> statut "' . $nouveauStatut . '"'
         );
 
         notify(
@@ -890,7 +930,7 @@ function handleRestore(): void
 
         jsonSuccess('La demande a ete restauree.');
     } catch (PDOException $e) {
-        logError('ERROR', 'Restore application error: ' . $e->getMessage(), 'api/applications.php', 878);
+        logError('ERROR', 'Restore application error: ' . $e->getMessage(), 'api/applications.php', 885);
         jsonError(500, 'Erreur interne. Veuillez reessayer.');
     }
 }

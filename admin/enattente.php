@@ -1,7 +1,7 @@
 <?php
 /**
  * ============================================================================
- * ATLANTIS v2 - Candidatures en attente / en cours
+ * ATLANTIS v2 - Candidatures en attente
  * ============================================================================
  */
 
@@ -16,10 +16,10 @@ $csrf = generateCsrfToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidatures en attente / en cours - ATLANTIS Admin</title>
+    <title>Candidatures en attente - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=10">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=12">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -31,7 +31,7 @@ $csrf = generateCsrfToken();
                 <button class="hamburger-admin" id="hamburgerAdmin" aria-label="Ouvrir le menu">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
-                <h1>Candidatures en attente / en cours</h1>
+                <h1>Candidatures en attente</h1>
             </div>
             <div class="header-right">
                 <?php echo renderNotificationBellHtml(); ?>
@@ -48,9 +48,20 @@ $csrf = generateCsrfToken();
                 <div class="table-responsive">
                     <table class="data-table" id="applicationsTable">
                         <thead>
-                            <tr><th>ID</th><th>Nom</th><th>Prenom</th><th>Telephone</th><th>Entreprise</th><th>Type</th><th>Statut</th><th>Dossier</th><th>Date</th><th>Actions</th></tr>
+                            <tr>
+                                <th class="th-sortable" data-sort="id">ID<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="nom">Nom<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="prenom">Prenom<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="telephone">Telephone<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="entreprise">Entreprise<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="type">Type<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="statut">Statut<span class="sort-indicator"></span></th>
+                                <th>Dossier</th>
+                                <th class="th-sortable" data-sort="created_at">Date<span class="sort-indicator"></span></th>
+                                <th>Actions</th>
+                            </tr>
                         </thead>
-                        <tbody id="applicationsBody"><tr><td colspan="9" class="text-center">Chargement...</td></tr></tbody>
+                        <tbody id="applicationsBody"><tr><td colspan="10" class="text-center">Chargement...</td></tr></tbody>
                     </table>
                 </div>
                 <div class="pagination" id="pagination"></div>
@@ -71,9 +82,9 @@ $csrf = generateCsrfToken();
     <script>
     const BASE_URL = '<?php echo BASE_URL; ?>';
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
-    const FILTER_STATUT = 'en_attente,en_cours';
+    const FILTER_STATUT = 'en_attente';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=6"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

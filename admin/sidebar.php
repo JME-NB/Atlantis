@@ -37,7 +37,7 @@ $superAdmin = isSuperAdmin();
 
             <!-- Candidatures : admin + gestionnaire (menu deroulant) -->
             <?php
-            $subPages = ['candidatures.php', 'enattente.php', 'acceptees.php', 'refusees.php', 'archivees.php'];
+            $subPages = ['candidatures.php', 'enattente.php', 'encours.php', 'acceptees.php', 'refusees.php', 'archivees.php'];
             $subOpen  = in_array($currentPage, $subPages, true);
             ?>
             <?php if (hasPermission(['admin', 'gestionnaire'])): ?>
@@ -49,11 +49,12 @@ $superAdmin = isSuperAdmin();
                 </a>
                 <ul class="sidebar-subnav">
                     <li><a href="<?php echo BASE_URL; ?>/admin/candidatures.php" class="<?php echo $currentPage === 'candidatures.php' ? 'active' : ''; ?>">Toutes</a></li>
-                    <li><a href="<?php echo BASE_URL; ?>/admin/enattente.php" class="<?php echo $currentPage === 'enattente.php' ? 'active' : ''; ?>">En attente / En cours</a></li>
-                    <li><a href="<?php echo BASE_URL; ?>/admin/acceptees.php" class="<?php echo $currentPage === 'acceptees.php' ? 'active' : ''; ?>">Acceptees</a></li>
-                    <li><a href="<?php echo BASE_URL; ?>/admin/refusees.php" class="<?php echo $currentPage === 'refusees.php' ? 'active' : ''; ?>">Refusees</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/admin/enattente.php" class="<?php echo $currentPage === 'enattente.php' ? 'active' : ''; ?>">En attente</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/admin/encours.php" class="<?php echo $currentPage === 'encours.php' ? 'active' : ''; ?>">En cours</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/admin/acceptees.php" class="<?php echo $currentPage === 'acceptees.php' ? 'active' : ''; ?>">Acceptées</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/admin/refusees.php" class="<?php echo $currentPage === 'refusees.php' ? 'active' : ''; ?>">Refusées</a></li>
                     <?php if (hasPermission('admin')): ?>
-                    <li><a href="<?php echo BASE_URL; ?>/admin/archivees.php" class="<?php echo $currentPage === 'archivees.php' ? 'active' : ''; ?>">Archivees</a></li>
+                    <li><a href="<?php echo BASE_URL; ?>/admin/archivees.php" class="<?php echo $currentPage === 'archivees.php' ? 'active' : ''; ?>">Archivées</a></li>
                     <?php endif; ?>
                 </ul>
             </li>
