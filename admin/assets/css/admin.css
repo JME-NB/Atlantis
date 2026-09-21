@@ -452,10 +452,9 @@ body {
 .main-content {
     flex: 1;
     margin-left: var(--sidebar-width);
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
-    min-height: 0;
 }
 
 /* --- SIDEBAR --- */
@@ -705,6 +704,9 @@ body {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 40;
 }
 
 .header-left {
@@ -743,14 +745,15 @@ body {
 /* --- PAGE CONTENT --- */
 .page-content {
     flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
     padding: 24px 32px;
 }
 
 /* --- APP FOOTER --- */
 .app-footer {
     flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
     padding: 14px 24px;
     border-top: 1px solid var(--border);
     background: var(--bg-card);
