@@ -35,13 +35,16 @@ function handleList(): void
     if (!isLoggedIn()) jsonError(401, 'Acces refuse.');
     if (!hasPermission('admin')) jsonError(403, 'Permissions insuffisantes.');
 
-    $pdo    = getDB();
-    $search = $_GET['search'] ?? '';
-    $action = $_GET['action_filter'] ?? '';
-    $userId = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT);
-    $page   = max(1, (int)($_GET['page'] ?? 1));
-    $limit  = 50;
-    $offset = ($page - 1) * $limit;
+    $pdo      = getDB();
+    $search   = is_string($_GET['search'] ?? null) ? trim($_GET['search']) : '';
+    $action   = is_string($_GET['action_filter'] ?? null) ? $_GET['action_filter'] : '';
+    $userId   = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT);
+    $role     = is_string($_GET['role'] ?? null) ? $_GET['role'] : '';
+    $dateDeb  = is_string($_GET['date_debut'] ?? null) ? $_GET['date_debut'] : '';
+    $dateFin  = is_string($_GET['date_fin'] ?? null) ? $_GET['date_fin'] : '';
+    $page     = max(1, (int)($_GET['page'] ?? 1));
+    $limit    = 50;
+    $offset   = ($page - 1) * $limit;
 
     $where  = [];
     $params = [];
@@ -61,14 +64,47 @@ function handleList(): void
         $params[':user_id'] = $userId;
     }
 
+    if ($role !== '') {
+        $where[]       = 'role_snapshot = :role';
+        $params[':role'] = $role;
+    }
+
+    if ($dateDeb !== '') {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateDeb)) jsonError(400, 'Date de debut invalide.');
+        $where[] = 'created_at >= :date_debut';
+        $params[':date_debut'] = $dateDeb . ' 00:00:00';
+    }
+
+    if ($dateFin !== '') {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFin)) jsonError(400, 'Date de fin invalide.');
+        $where[] = 'created_at <= :date_fin';
+        $params[':date_fin'] = $dateFin . ' 23:59:59';
+    }
+
+    // Tri par liste blanche (anti-injection SQL)
+    $sortCols = [
+        'created_at'          => 'created_at',
+        'user_id'             => 'user_id',
+        'identifiant_snapshot' => 'identifiant_snapshot',
+        'role_snapshot'       => 'role_snapshot',
+        'action'              => 'action',
+        'details'             => 'details',
+        'adresse_ip'          => 'adresse_ip',
+    ];
+    $sort = (is_string($_GET['sort'] ?? null) && isset($sortCols[$_GET['sort']]))
+        ? $sortCols[$_GET['sort']]
+        : 'created_at';
+    $dir = (is_string($_GET['dir'] ?? null) && strtoupper($_GET['dir']) === 'ASC') ? 'ASC' : 'DESC';
+
     $whereSQL = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+    $orderSQL = 'ORDER BY ' . $sort . ' ' . $dir;
 
     $countSQL = "SELECT COUNT(*) as total FROM audit_log $whereSQL";
     $stmt     = $pdo->prepare($countSQL);
     $stmt->execute($params);
     $total    = (int) $stmt->fetch()['total'];
 
-    $dataSQL = "SELECT * FROM audit_log $whereSQL ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
+    $dataSQL = "SELECT * FROM audit_log $whereSQL $orderSQL LIMIT :limit OFFSET :offset";
     $stmt    = $pdo->prepare($dataSQL);
     foreach ($params as $k => $v) {
         $stmt->bindValue($k, $v);

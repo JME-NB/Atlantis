@@ -27,7 +27,13 @@
                 url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(extraParams[k]);
             });
         }
-        return fetch(url).then(function (r) { return r.json(); });
+        return fetch(url).then(function (r) {
+            if (r.status === 401 || r.status === 403) {
+                if (window.handleUnauthorized) window.handleUnauthorized();
+                throw new Error('unauthorized');
+            }
+            return r.json();
+        });
     }
 
     function apiPost(action, extraParams) {
@@ -41,7 +47,13 @@
         return fetch(url, {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': (typeof CSRF_TOKEN !== 'undefined' ? CSRF_TOKEN : '') }
-        }).then(function (r) { return r.json(); });
+        }).then(function (r) {
+            if (r.status === 401 || r.status === 403) {
+                if (window.handleUnauthorized) window.handleUnauthorized();
+                throw new Error('unauthorized');
+            }
+            return r.json();
+        });
     }
 
     // -------------------------------------------------------------------------

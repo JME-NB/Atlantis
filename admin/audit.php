@@ -10,6 +10,23 @@ require_once __DIR__ . '/../includes/admin_theme.php';
 requireRole('admin');
 
 $csrf = generateCsrfToken();
+
+$auditUsers = [];
+$auditRoles = [];
+try {
+    $pdo       = getDB();
+    $auditUsers = $pdo->query(
+        'SELECT DISTINCT user_id, identifiant_snapshot FROM audit_log
+          WHERE user_id IS NOT NULL ORDER BY identifiant_snapshot'
+    )->fetchAll();
+    $auditRoles = $pdo->query(
+        'SELECT DISTINCT role_snapshot FROM audit_log
+          WHERE role_snapshot IS NOT NULL AND role_snapshot <> "" ORDER BY role_snapshot'
+    )->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    $auditUsers = [];
+    $auditRoles = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -19,7 +36,7 @@ $csrf = generateCsrfToken();
     <title>Audit - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=16">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=17">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -39,13 +56,37 @@ $csrf = generateCsrfToken();
         </header>
 
         <div class="page-content">
-            <div class="filters-bar">
+            <div class="filters-bar audit-filters">
                 <div class="filter-group">
-                    <input type="text" id="auditSearch" class="form-input" placeholder="Rechercher dans l'audit...">
+                    <label class="filter-label" for="auditDateDeb">Date du</label>
+                    <input type="date" id="auditDateDeb" class="form-input">
                 </div>
                 <div class="filter-group">
+                    <label class="filter-label" for="auditDateFin">Au</label>
+                    <input type="date" id="auditDateFin" class="form-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="auditUserFilter">Utilisateur</label>
+                    <select id="auditUserFilter" class="form-select">
+                        <option value="">Tous les utilisateurs</option>
+                        <?php foreach ($auditUsers as $u) : ?>
+                        <option value="<?php echo (int) $u['user_id']; ?>"><?php echo htmlspecialchars($u['identifiant_snapshot']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="auditRoleFilter">R&ocirc;le</label>
+                    <select id="auditRoleFilter" class="form-select">
+                        <option value="">Tous les r&ocirc;les</option>
+                        <?php foreach ($auditRoles as $r) : ?>
+                        <option value="<?php echo htmlspecialchars($r); ?>"><?php echo htmlspecialchars($r); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="auditActionFilter">Action</label>
                     <select id="auditActionFilter" class="form-select">
-                        <option value="">Toutes les actions</option>
+                        <option value="">Tous les details</option>
                         <option value="login_success">Connexion reussie</option>
                         <option value="login_failed">Connexion echouee</option>
                         <option value="logout">Deconnexion</option>
@@ -63,6 +104,10 @@ $csrf = generateCsrfToken();
                         <option value="restore_application">Restauration demande</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="auditSearch">D&eacute;tails</label>
+                    <input type="text" id="auditSearch" class="form-input" placeholder="Rechercher...">
+                </div>
             </div>
 
             <div class="card">
@@ -70,12 +115,12 @@ $csrf = generateCsrfToken();
                     <table class="data-table" id="auditTable">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Utilisateur</th>
-                                <th>Role</th>
-                                <th>Action</th>
-                                <th>Details</th>
-                                <th>IP</th>
+                                <th class="th-sortable" data-sort="created_at">Date<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="identifiant_snapshot">Utilisateur<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="role_snapshot">Role<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="action">Action<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="details">Details<span class="sort-indicator"></span></th>
+                                <th class="th-sortable" data-sort="adresse_ip">IP<span class="sort-indicator"></span></th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -106,7 +151,7 @@ $csrf = generateCsrfToken();
     const BASE_URL = '<?php echo BASE_URL; ?>';
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=9"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=2"></script>
 </body>
 </html>

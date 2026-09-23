@@ -849,6 +849,8 @@
     var auditBody = document.getElementById('auditBody');
     if (auditBody) {
         var currentAuditPage = 1;
+        var currentSort = 'created_at';
+        var currentSortDir = 'desc';
 
         function loadAudit(page) {
             currentAuditPage = page || 1;
@@ -856,21 +858,39 @@
             params.set('action', 'list');
             params.set('page', currentAuditPage);
 
-            var search = document.getElementById('auditSearch');
-            var actionF = document.getElementById('auditActionFilter');
-            if (search && search.value) params.set('search', search.value);
-            if (actionF && actionF.value) params.set('action_filter', actionF.value);
+            var vals = {
+                search: document.getElementById('auditSearch'),
+                actionF: document.getElementById('auditActionFilter'),
+                userF: document.getElementById('auditUserFilter'),
+                roleF: document.getElementById('auditRoleFilter'),
+                dateDeb: document.getElementById('auditDateDeb'),
+                dateFin: document.getElementById('auditDateFin')
+            };
+            if (vals.search && vals.search.value) params.set('search', vals.search.value);
+            if (vals.actionF && vals.actionF.value) params.set('action_filter', vals.actionF.value);
+            if (vals.userF && vals.userF.value) params.set('user_id', vals.userF.value);
+            if (vals.roleF && vals.roleF.value) params.set('role', vals.roleF.value);
+            if (vals.dateDeb && vals.dateDeb.value) params.set('date_debut', vals.dateDeb.value);
+            if (vals.dateFin && vals.dateFin.value) params.set('date_fin', vals.dateFin.value);
+
+            params.set('sort', currentSort);
+            params.set('dir', currentSortDir.toUpperCase());
 
             fetch(BASE_URL + '/api/audit.php?' + params.toString())
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (r.status === 401 || r.status === 403) { handleUnauthorized(); return null; }
+                return r.json();
+            })
             .then(function(data) {
-                if (data.success) renderAuditTable(data.items, data.page, data.pages);
+                if (data && data.success) renderAuditTable(data.items, data.page, data.pages);
             });
         }
 
         function renderAuditTable(items, page, pages) {
             if (!items || items.length === 0) {
-                auditBody.innerHTML = '<tr><td colspan="7" class="text-center">Aucune entree.</td></tr>';
+                auditBody.innerHTML = '<tr><td colspan="7" class="text-center">Aucune entree trouvee.</td></tr>';
+                var pagEmpty = document.getElementById('auditPagination');
+                if (pagEmpty) pagEmpty.innerHTML = '';
                 return;
             }
 
@@ -878,8 +898,8 @@
             items.forEach(function(log) {
                 html += '<tr>';
                 html += '<td>' + formatDate(log.created_at) + '</td>';
-                html += '<td>' + escHtml(log.identifiant_snapshot) + '</td>';
-                html += '<td>' + escHtml(log.role_snapshot) + '</td>';
+                html += '<td>' + escHtml(log.identifiant_snapshot || '-') + '</td>';
+                html += '<td>' + escHtml(log.role_snapshot || '-') + '</td>';
                 html += '<td><span class="badge badge-' + actionBadge(log.action) + '">' + escHtml(log.action) + '</span></td>';
                 html += '<td>' + escHtml(log.details || '-') + '</td>';
                 html += '<td>' + escHtml(log.adresse_ip || '-') + '</td>';
@@ -904,10 +924,42 @@
             }
         }
 
+        // Tri par en-tete de colonne (ascendant / descendant)
+        var auditSortHeaders = Array.prototype.slice.call(document.querySelectorAll('#auditTable thead th[data-sort]'));
+        auditSortHeaders.forEach(function(th) {
+            if (th.dataset.sort === currentSort) {
+                th.classList.add('active-sort');
+                if (currentSortDir === 'desc') th.classList.add('sort-desc');
+            }
+            th.addEventListener('click', function() {
+                var col = this.dataset.sort;
+                if (currentSort === col) {
+                    currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort = col;
+                    currentSortDir = 'asc';
+                }
+                renderAuditSortIndicators();
+                loadAudit(1);
+            });
+        });
+
+        function renderAuditSortIndicators() {
+            auditSortHeaders.forEach(function(th) {
+                th.classList.toggle('active-sort', th.dataset.sort === currentSort);
+                th.classList.toggle('sort-desc', th.dataset.sort === currentSort && currentSortDir === 'desc');
+            });
+        }
+
         window._loadAudit = function(p) { loadAudit(p); };
 
+        var auditSelectFilters = ['auditActionFilter', 'auditUserFilter', 'auditRoleFilter', 'auditDateDeb', 'auditDateFin'];
+        auditSelectFilters.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('change', function() { loadAudit(1); });
+        });
+
         var auditSearch = document.getElementById('auditSearch');
-        var auditActionFilter = document.getElementById('auditActionFilter');
         if (auditSearch) {
             var auditTimeout;
             auditSearch.addEventListener('input', function() {
@@ -915,7 +967,6 @@
                 auditTimeout = setTimeout(function() { loadAudit(1); }, 300);
             });
         }
-        if (auditActionFilter) auditActionFilter.addEventListener('change', function() { loadAudit(1); });
 
         loadAudit(1);
     }
@@ -932,8 +983,12 @@
         modal.hidden = false;
 
         fetch(BASE_URL + '/api/audit.php?action=details&id=' + id)
-        .then(function(r) { return r.json(); })
+        .then(function(r) {
+            if (r.status === 401 || r.status === 403) { handleUnauthorized(); return null; }
+            return r.json();
+        })
         .then(function(data) {
+            if (!data) return;
             if (!data.success) {
                 body.innerHTML = '<p style="color:var(--danger)">' + escHtml(data.message) + '</p>';
                 return;
@@ -1720,6 +1775,15 @@
         container.appendChild(toast);
         setTimeout(function() { toast.remove(); }, 4000);
     }
+
+    var authRedirecting = false;
+    function handleUnauthorized() {
+        if (authRedirecting) return;
+        authRedirecting = true;
+        showToast('Session expiree. Redirection vers la connexion...', true);
+        setTimeout(function() { window.location.href = BASE_URL + '/admin/login.php'; }, 1500);
+    }
+    window.handleUnauthorized = handleUnauthorized;
 
     function formatDate(dateStr) {
         if (!dateStr) return '-';

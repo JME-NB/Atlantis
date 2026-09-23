@@ -73,9 +73,11 @@ function isValidEmail(string $email): bool
  */
 function jsonResponse(int $statusCode, array $data): void
 {
+    while (ob_get_level() > 0) ob_end_clean();
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    echo $json === false ? '{}' : $json;
     exit;
 }
 
@@ -409,7 +411,15 @@ function ensureSession(): void
         ini_set('session.cookie_secure', isSecureConnection() ? '1' : '0');
         ini_set('session.use_strict_mode', '1');
         ini_set('session.gc_maxlifetime', (string) SESSION_LIFETIME);
-        session_start();
+
+        set_error_handler(function (int $severity, string $message): bool {
+            return str_contains($message, 'session_start');
+        });
+        try {
+            session_start();
+        } finally {
+            restore_error_handler();
+        }
     }
 }
 
