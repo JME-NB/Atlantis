@@ -34,7 +34,7 @@ define('DB_NAME', 'atlantis_v2');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
-
+ 
 // --- Configuration de la session ---
 define('SESSION_LIFETIME', 3600);           // Duree de vie de la session en secondes (1h)
 define('MAX_LOGIN_ATTEMPTS', 5);            // Nombre max de tentatives avant blocage
