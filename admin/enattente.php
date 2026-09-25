@@ -19,7 +19,7 @@ $csrf = generateCsrfToken();
     <title>Candidatures en attente - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=16">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=19">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -88,7 +88,7 @@ $csrf = generateCsrfToken();
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     const FILTER_STATUT = 'en_attente';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=10"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

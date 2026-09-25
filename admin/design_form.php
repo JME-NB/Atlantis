@@ -46,7 +46,7 @@ $fieldTypeLabels = [
     <title>Editer le formulaire - ATLANTIS Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=16">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=19">
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -161,7 +161,7 @@ $fieldTypeLabels = [
     const READONLY = <?php echo $readonly ? 'true' : 'false'; ?>;
     const FIELD_CUSTOM_COUNTER = <?php echo (int) $customCounter; ?>;
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=8"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=10"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
     <script>
     (function() {
@@ -255,7 +255,7 @@ $fieldTypeLabels = [
         document.querySelectorAll('.field-remove').forEach(function(b) {
             b.addEventListener('click', function() {
                 if (!confirm('Supprimer ce champ du formulaire ?')) return;
-                this.closest('.field-row').remove();
+                window.atlantisAnim.rowOut(this.closest('.field-row'));
             });
         });
 
@@ -291,11 +291,12 @@ $fieldTypeLabels = [
                         '<span class="badge badge-secondary field-cle">' + cle + '</span>' +
                     '</div>';
                 listEl().appendChild(div);
+                if (window.atlantisAnim) window.atlantisAnim.rowIn(div);
                 div.querySelector('.field-up').addEventListener('click', function() { reorder.call(this, true); });
                 div.querySelector('.field-down').addEventListener('click', function() { reorder.call(this, false); });
                 div.querySelector('.field-remove').addEventListener('click', function() {
                     if (!confirm('Supprimer ce champ du formulaire ?')) return;
-                    div.remove();
+                    window.atlantisAnim.rowOut(div);
                 });
                 div.querySelector('.field-type').addEventListener('change', function() { toggleOptionsGroup(div); });
             });

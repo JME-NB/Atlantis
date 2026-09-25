@@ -12,33 +12,113 @@
     document.documentElement.setAttribute('data-admin-js-loaded', '1');
 
     // =========================================================================
+    // ANIMATIONS - helpers communs (fenetres, accordeons, lignes dynamiques)
+    // =========================================================================
+    function openAnimatedOverlay(overlay) {
+        if (!overlay) return;
+        overlay.classList.remove('is-closing');
+        overlay.classList.remove('anim-open');
+        overlay.hidden = false;
+        void overlay.offsetWidth;
+        overlay.classList.add('anim-open');
+    }
+
+    function closeAnimatedOverlay(overlay) {
+        if (!overlay || overlay.hidden) return;
+        overlay.classList.add('is-closing');
+        setTimeout(function() {
+            overlay.hidden = true;
+            overlay.classList.remove('anim-open');
+            overlay.classList.remove('is-closing');
+        }, 200);
+    }
+
+    function expandCollapseBody(body) {
+        if (!body) return;
+        body.hidden = false;
+        body.style.maxHeight = '0px';
+        body.style.opacity = '0';
+        void body.offsetWidth;
+        body.style.maxHeight = body.scrollHeight + 'px';
+        body.style.opacity = '1';
+        setTimeout(function() { body.style.maxHeight = ''; body.style.opacity = ''; }, 300);
+    }
+
+    function collapseCollapseBody(body) {
+        if (!body || body.hidden) return;
+        body.style.maxHeight = body.scrollHeight + 'px';
+        body.style.opacity = '1';
+        void body.offsetWidth;
+        body.style.maxHeight = '0px';
+        body.style.opacity = '0';
+        setTimeout(function() {
+            body.hidden = true;
+            body.style.maxHeight = '';
+            body.style.opacity = '';
+        }, 300);
+    }
+
+    window.atlantisAnim = {
+        rowIn: function(el) { if (el) el.classList.add('row-in'); },
+        rowOut: function(el, done) {
+            if (!el) { if (typeof done === 'function') done(); return; }
+            el.classList.add('row-out');
+            setTimeout(function() {
+                if (typeof done === 'function') done();
+                el.remove();
+            }, 180);
+        }
+    };
+
+    // =========================================================================
     // SIDEBAR MOBILE
     // =========================================================================
     var hamburgerAdmin = document.getElementById('hamburgerAdmin');
     var sidebar = document.getElementById('sidebar');
     var sidebarOverlay = document.getElementById('sidebarOverlay');
 
+    function closeSubnavs() {
+        document.querySelectorAll('#sidebar .has-subnav.open').forEach(function(o) {
+            o.classList.remove('open');
+            var t = o.querySelector('[data-toggle-subnav]');
+            if (t) t.setAttribute('aria-expanded', 'false');
+        });
+    }
+
     if (hamburgerAdmin && sidebar) {
         hamburgerAdmin.addEventListener('click', function() {
             var isOpen = sidebar.classList.toggle('open');
             if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
-            if (!isOpen && userBtn && userMenu && closeUserMenu) closeUserMenu();
+            if (!isOpen) {
+                if (userBtn && userMenu && closeUserMenu) closeUserMenu();
+                closeSubnavs();
+            }
         });
     }
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', function() {
             sidebar.classList.remove('open');
             sidebarOverlay.classList.remove('active');
+            closeSubnavs();
         });
     }
 
-    // Sous-menu "Suivi des candidatures" : bascule au clic (mobile/tactile)
+    // Sous-menu "Suivi des candidatures" : bascule au clic (toutes tailles d'ecran).
+    // Ouvrir un sous-menu replie les autres (accordion).
     document.querySelectorAll('.has-subnav > [data-toggle-subnav]').forEach(function(link) {
         link.addEventListener('click', function(e) {
             e.preventDefault();
             var item = link.parentElement;
-            var isOpen = item.classList.toggle('open');
-            link.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            var willOpen = !item.classList.contains('open');
+            document.querySelectorAll('#sidebar .has-subnav.open').forEach(function(o) {
+                if (o !== item) {
+                    o.classList.remove('open');
+                    var t = o.querySelector('[data-toggle-subnav]');
+                    if (t) t.setAttribute('aria-expanded', 'false');
+                }
+            });
+            item.classList.toggle('open', willOpen);
+            link.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
         });
     });
 
@@ -50,13 +130,19 @@
 
     if (userBtn && userMenu) {
         var closeUserMenu = function() {
-            userMenu.hidden = true;
+            if (userMenu.hidden || userMenu.classList.contains('is-closing')) return;
+            userMenu.classList.add('is-closing');
             userBtn.setAttribute('aria-expanded', 'false');
+            setTimeout(function() {
+                userMenu.hidden = true;
+                userMenu.classList.remove('is-closing');
+            }, 190);
         };
 
         userBtn.addEventListener('click', function(e) {
             e.stopPropagation();
-            var hidden = userMenu.hidden;
+            var hidden = userMenu.hidden || userMenu.classList.contains('is-closing');
+            userMenu.classList.remove('is-closing');
             closeUserMenu();
             if (hidden) {
                 userMenu.hidden = false;
@@ -404,7 +490,7 @@
             }
             document.getElementById('modalFooter').innerHTML = footerHtml;
 
-            document.getElementById('detailModal').hidden = false;
+            openAnimatedOverlay(document.getElementById('detailModal'));
 
             if (isArchivePage) {
                 var restoreBtn = document.getElementById('restoreBtn');
@@ -431,7 +517,7 @@
                 document.getElementById('saveStatusBtn').addEventListener('click', function() {
                     var newStatut = document.getElementById('modalStatus').value;
                     if (newStatut === app.statut) {
-                        document.getElementById('detailModal').hidden = true;
+                        closeAnimatedOverlay(document.getElementById('detailModal'));
                         return;
                     }
                     updateStatus(this.dataset.id, newStatut);
@@ -447,15 +533,15 @@
     // Close modal
     document.addEventListener('click', function(e) {
         if (e.target.id === 'closeModal' || e.target.id === 'detailModal') {
-            document.getElementById('detailModal').hidden = true;
+            closeAnimatedOverlay(document.getElementById('detailModal'));
         }
         if (e.target.id === 'closeCreateModal' || e.target.id === 'cancelCreateBtn' || e.target.id === 'createModal') {
             var cm = document.getElementById('createModal');
-            if (cm) cm.hidden = true;
+            if (cm) closeAnimatedOverlay(cm);
         }
         if (e.target.id === 'closeRoleModal' || e.target.id === 'cancelRoleBtn' || e.target.id === 'roleModal') {
             var rm = document.getElementById('roleModal');
-            if (rm) rm.hidden = true;
+            if (rm) closeAnimatedOverlay(rm);
         }
     });
 
@@ -474,7 +560,7 @@
         .then(function(data) {
             if (data.success) {
                 showToast('Statut mis a jour.');
-                document.getElementById('detailModal').hidden = true;
+                closeAnimatedOverlay(document.getElementById('detailModal'));
                 if (typeof loadApplications === 'function' || typeof _loadApps === 'function') {
                     _loadApps(currentApplicationsPage || 1);
                 }
@@ -519,7 +605,7 @@
         .then(function(data) {
             if (data.success) {
                 showToast('Demande restauree.');
-                document.getElementById('detailModal').hidden = true;
+                closeAnimatedOverlay(document.getElementById('detailModal'));
                 _loadApps(currentApplicationsPage || 1);
             } else {
                 showToast(data.message, true);
@@ -539,7 +625,7 @@
         .then(function(data) {
             if (data.success) {
                 showToast('Demande supprimee definitivement.');
-                document.getElementById('detailModal').hidden = true;
+                closeAnimatedOverlay(document.getElementById('detailModal'));
                 _loadApps(currentApplicationsPage || 1);
             } else {
                 showToast(data.message, true);
@@ -735,7 +821,7 @@
 
     if (createUserBtn) {
         createUserBtn.addEventListener('click', function() {
-            document.getElementById('createModal').hidden = false;
+            openAnimatedOverlay(document.getElementById('createModal'));
         });
     }
 
@@ -754,7 +840,7 @@
             .then(function(data) {
                 if (data.success) {
                     showToast('Compte cree avec succes.');
-                    document.getElementById('createModal').hidden = true;
+                    closeAnimatedOverlay(document.getElementById('createModal'));
                     createUserForm.reset();
                     if (typeof _loadUsers === 'function') _loadUsers();
                 } else {
@@ -778,7 +864,7 @@
     function openRoleModal(userId, name, currentRole) {
         document.getElementById('roleUserName').textContent = name;
         document.getElementById('newRoleSelect').value = currentRole;
-        document.getElementById('roleModal').hidden = false;
+        openAnimatedOverlay(document.getElementById('roleModal'));
         document.getElementById('confirmRoleBtn').dataset.id = userId;
     }
 
@@ -801,7 +887,7 @@
             .then(function(data) {
                 if (data.success) {
                     showToast('Role mis a jour.');
-                    document.getElementById('roleModal').hidden = true;
+                    closeAnimatedOverlay(document.getElementById('roleModal'));
                     if (typeof _loadUsers === 'function') _loadUsers();
                 } else {
                     showToast(data.message, true);
@@ -980,7 +1066,7 @@
         if (!modal || !body) return;
 
         body.innerHTML = '<p style="text-align:center;color:var(--text-muted)">Chargement...</p>';
-        modal.hidden = false;
+        openAnimatedOverlay(modal);
 
         fetch(BASE_URL + '/api/audit.php?action=details&id=' + id)
         .then(function(r) {
@@ -1063,7 +1149,7 @@
     document.addEventListener('click', function(e) {
         if (e.target.id === 'closeAuditModal' || e.target.id === 'auditDetailModal') {
             var am = document.getElementById('auditDetailModal');
-            if (am) am.hidden = true;
+            if (am) closeAnimatedOverlay(am);
         }
     });
 
@@ -1487,7 +1573,7 @@
             var next = row.nextElementSibling;
             if (next) row.parentNode.insertBefore(next, row);
         });
-        if (del) del.addEventListener('click', function() { row.remove(); });
+        if (del) del.addEventListener('click', function() { window.atlantisAnim.rowOut(row); });
 
         var upload = row.querySelector('.rub-upload');
         if (upload) upload.addEventListener('change', function() {
@@ -1525,6 +1611,7 @@
             temp.innerHTML = rubriqueRowTemplate();
             var row = temp.firstChild;
             list.appendChild(row);
+            window.atlantisAnim.rowIn(row);
             bindRubriqueRow(row);
         });
     });
@@ -1611,7 +1698,8 @@
             if (e.target.closest('.toggle-switch') || e.target.closest('.section-drag-handle')) return;
             var editor = this.closest('.section-editor');
             var body = editor.querySelector('.section-editor-body');
-            body.hidden = !body.hidden;
+            if (body.hidden) expandCollapseBody(body);
+            else collapseCollapseBody(body);
         });
     });
 

@@ -556,7 +556,6 @@ body {
     transition: transform 0.3s ease;
 }
 
-.sidebar-nav-item.has-subnav:hover .subnav-chevron,
 .sidebar-nav-item.has-subnav.open .subnav-chevron {
     transform: rotate(180deg);
 }
@@ -569,7 +568,9 @@ body {
     transition: max-height 0.35s ease, opacity 0.3s ease;
 }
 
-.sidebar-nav-item.has-subnav:hover > .sidebar-subnav,
+/* Ouverture uniquement au clic (.open) : le survol n'ouvre plus le sous-menu,
+   sinon le menu reste deploye tant que le curseur est dessus et le 2e clic
+   (fermeture) devient inutile. */
 .sidebar-nav-item.has-subnav.open > .sidebar-subnav {
     max-height: 320px;
     opacity: 1;
@@ -644,6 +645,13 @@ body {
 
 .user-menu[hidden] { display: none; }
 
+.user-menu.is-closing { animation: userMenuSlideOut .18s ease both; }
+
+@keyframes userMenuSlideOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-8px); }
+}
+
 .user-menu-item {
     display: flex;
     align-items: center;
@@ -693,11 +701,19 @@ body {
 .sidebar-logout svg { width: 20px; height: 20px; }
 
 .sidebar-overlay {
-    display: none;
+    display: block;
+    opacity: 0;
+    visibility: hidden;
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.5);
     z-index: 99;
+    transition: opacity .2s ease, visibility .2s ease;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* --- PAGE HEADER --- */
@@ -1136,9 +1152,48 @@ body {
     to   { opacity: 0; transform: scale(.95) translateY(6px); }
 }
 
+/* --- MODALES : animation ouverture / fermeture (hors confirm) --- */
+.modal-overlay.anim-open { animation: overlayFadeIn .2s ease-out both; }
+.modal-overlay.anim-open > .modal { animation: modalPopIn .2s cubic-bezier(.2,.8,.2,1) both; }
+.modal-overlay.is-closing { animation: overlayFadeOut .18s ease-in both; }
+.modal-overlay.is-closing > .modal { animation: modalPopOut .18s ease-in both; }
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes overlayFadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+
+@keyframes modalPopIn {
+    from { opacity: 0; transform: scale(.96) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes modalPopOut {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to   { opacity: 0; transform: scale(.96) translateY(8px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .confirm-overlay,
-    .confirm-modal { animation: none; }
+    .confirm-modal,
+    .modal-overlay.anim-open,
+    .modal-overlay.anim-open > .modal,
+    .modal-overlay.is-closing,
+    .modal-overlay.is-closing > .modal,
+    .section-editor-body,
+    .row-in,
+    .row-out,
+    .design-panel,
+    .designs-list,
+    .sidebar-overlay,
+    .user-menu,
+    .user-menu.is-closing,
+    .sidebar-subnav { animation: none; transition: none; }
 }
 
 /* --- TOASTS --- */
@@ -1245,6 +1300,8 @@ body {
 
 .section-editor-body {
     padding: 16px;
+    overflow: hidden;
+    transition: max-height .28s ease, opacity .22s ease;
 }
 
 .section-editor.dragging {
@@ -1404,6 +1461,29 @@ body {
 
 /* Panneau d'edition d'un onglet */
 .design-panel[hidden] { display: none; }
+
+/* Transition entre panneaux d'onglets design */
+.design-panel:not([hidden]),
+.designs-list:not([hidden]) { animation: panelFadeKey .2s ease; }
+
+@keyframes panelFadeKey {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Entree / sortie des lignes dynamiques (rubriques, champs de formulaire) */
+@keyframes rowInKey {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rowOutKey {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-8px); }
+}
+
+.row-in  { animation: rowInKey .2s ease both; }
+.row-out { animation: rowOutKey .18s ease both; }
 
 .upload-input {
     width: 100%;
@@ -1832,8 +1912,6 @@ body {
     }
 
     .sidebar.open { transform: translateX(0); }
-
-    .sidebar-overlay.active { display: block; }
 
     /* User menu : menu flottant rendu juste au-dessus du bouton utilisateur.
        Les styles inline calcules par repositionUserMenu() (left/top/width)
