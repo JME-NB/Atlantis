@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/csrf.php';
+require_once __DIR__ . '/../includes/admin_theme.php';
 
 // Si deja connecte (ou cookie "se souvenir de moi" valide), rediriger
 maybeAutoLogin();
@@ -90,6 +91,7 @@ $loginVoile = $loginBg !== '' ? 'rgba(' . hexToRgb($loginBg) . ', ' . ($loginBgF
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=<?php echo htmlspecialchars(str_replace(' ', '+', $loginPolice), ENT_QUOTES, 'UTF-8'); ?>:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=19">
+    <?php renderAdminFavicon(); ?>
     <style>
     :root {
         --login-bg: <?php echo $loginBg !== '' ? htmlspecialchars($loginBg, ENT_QUOTES) : '#0a1628'; ?>;
@@ -122,7 +124,7 @@ $loginVoile = $loginBg !== '' ? 'rgba(' . hexToRgb($loginBg) . ', ' . ($loginBgF
                 <h1>ATLANTIS</h1>
                 <p>Espace d'administration</p>
             </div>
-            <form id="loginForm" class="login-form" novalidate>
+            <form id="loginForm" class="login-form" method="post" action="<?php echo BASE_URL; ?>/api/auth.php?action=login" novalidate>
                 <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>">
                 <div class="form-group input-icon">
                     <label for="identifiant">Identifiant</label>
@@ -159,6 +161,6 @@ $loginVoile = $loginBg !== '' ? 'rgba(' . hexToRgb($loginBg) . ', ' . ($loginBgF
     <script>
     const BASE_URL = '<?php echo BASE_URL; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=10"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=14"></script>
 </body>
 </html>

@@ -20,6 +20,7 @@ $csrf = generateCsrfToken();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=19">
+    <?php renderAdminFavicon(); ?>
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -87,7 +88,7 @@ $csrf = generateCsrfToken();
     const BASE_URL = '<?php echo BASE_URL; ?>';
     const CSRF_TOKEN = '<?php echo $csrf; ?>';
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=10"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=14"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
 </body>
 </html>

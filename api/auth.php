@@ -67,10 +67,16 @@ function handleLogin(): void
         $stmt->execute([':identifiant' => $identifiant]);
         $user = $stmt->fetch();
 
-        if (!$user || !password_verify($mot_de_passe, $user['mot_de_passe_hash'])) {
+        if (!$user) {
             recordFailedLogin($identifiant);
-            logAudit('login_failed', 'user', null, 'Tentative echouee pour : ' . $identifiant);
-            jsonError(401, 'Identifiants incorrects.');
+            logAudit('login_failed', 'user', null, 'Identifiant inexistant : ' . $identifiant);
+            jsonError(401, 'Identifiant inexistant.');
+        }
+
+        if (!password_verify($mot_de_passe, $user['mot_de_passe_hash'])) {
+            recordFailedLogin($identifiant);
+            logAudit('login_failed', 'user', $user['id'], 'Mot de passe incorrect pour : ' . $identifiant);
+            jsonError(401, 'Mot de passe incorrect.');
         }
 
         if ($user['statut_compte'] === 'desactive') {

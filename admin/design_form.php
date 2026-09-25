@@ -47,6 +47,7 @@ $fieldTypeLabels = [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>/admin/assets/css/admin.css?v=19">
+    <?php renderAdminFavicon(); ?>
     <?php renderAdminTheme(); ?>
 </head>
 <body class="admin-body">
@@ -161,7 +162,7 @@ $fieldTypeLabels = [
     const READONLY = <?php echo $readonly ? 'true' : 'false'; ?>;
     const FIELD_CUSTOM_COUNTER = <?php echo (int) $customCounter; ?>;
     </script>
-    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=10"></script>
+    <script src="<?php echo BASE_URL; ?>/admin/assets/js/admin.js?v=14"></script>
     <script src="<?php echo BASE_URL; ?>/admin/assets/js/notifications.js?v=1"></script>
     <script>
     (function() {

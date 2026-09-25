@@ -71,6 +71,22 @@
     };
 
     // =========================================================================
+    // CONTROLS HELPERS (feedback formulaire)
+    // =========================================================================
+    function showFeedback(id, message, type) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = message;
+        el.className = 'form-feedback ' + type;
+        el.hidden = false;
+    }
+
+    function hideFeedback(id) {
+        var el = document.getElementById(id);
+        if (el) { el.hidden = true; el.className = 'form-feedback'; }
+    }
+
+    // =========================================================================
     // SIDEBAR MOBILE
     // =========================================================================
     var hamburgerAdmin = document.getElementById('hamburgerAdmin');
@@ -196,20 +212,57 @@
     var loginForm = document.getElementById('loginForm');
     if (loginForm) {
 
-        // Anti pre-remplissage automatique du navigateur (sans casser la sauvegarde) :
-        // champs en readonly au chargement -> vides ; readonly retire au premier focus.
-        ['identifiant', 'mot_de_passe'].forEach(function(id) {
+        // Anti pre-remplissage au chargement + autofill au clic via
+        // Credential Management API : champs readonly + vides au load (Chrome ne
+        // pre-remplit pas). Au pointerdown/focus sur l'un des deux champs, on
+        // appelle l'API SANS derouler le readonly : Chromium affiche alors le
+        // selecteur natif des comptes enregistres (meme comportement sur
+        // identifiant et mot de passe) et on remplit les 2 champs a la
+        // resolution. Uniquement ensuite : dereverrouillage pour saisie manuelle.
+        var fieldIds = ['identifiant', 'mot_de_passe'];
+        function unlockFields() {
+            fieldIds.forEach(function(id) {
+                var f = document.getElementById(id);
+                if (f) f.readOnly = false;
+            });
+        }
+        var proposing = false;
+        function proposeSavedLogin() {
+            if (!navigator.credentials) {
+                unlockFields();
+                return;
+            }
+            if (proposing) return;
+            proposing = true;
+            navigator.credentials.get({ password: true, mediation: 'optional' })
+                .then(function(cred) {
+                    proposing = false;
+                    if (cred && window.PasswordCredential && cred instanceof PasswordCredential) {
+                        var idn = document.getElementById('identifiant');
+                        var mdp = document.getElementById('mot_de_passe');
+                        if (idn) idn.value = cred.id;
+                        if (mdp) mdp.value = cred.password;
+                    }
+                    unlockFields();
+                })
+                .catch(function() {
+                    proposing = false;
+                    unlockFields();
+                });
+        }
+
+        fieldIds.forEach(function(id) {
             var field = document.getElementById(id);
             if (!field) return;
             field.readOnly = true;
             field.value = '';
-            field.addEventListener('focus', function() {
-                field.removeAttribute('readonly');
-            });
+            field.addEventListener('pointerdown', proposeSavedLogin);
+            field.addEventListener('focus', proposeSavedLogin);
         });
 
         loginForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            hideFeedback('loginFeedback');
             var btn = document.getElementById('loginBtn');
             btn.disabled = true;
             btn.textContent = 'Connexion...';
@@ -241,6 +294,7 @@
         // Page change_password.php (pas preferences)
         changePwForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            hideFeedback('changeFeedback');
             var btn = document.getElementById('changeBtn');
             btn.disabled = true;
             btn.textContent = 'Changement...';
